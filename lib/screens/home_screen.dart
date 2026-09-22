@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'monthly_wrapped_screen.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  final VoidCallback? onViewAllPressed; // Tambahan callback
+
+  const HomeScreen({super.key, this.onViewAllPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -13,53 +16,6 @@ class HomeScreen extends StatelessWidget {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            SliverAppBar(
-              backgroundColor: colorScheme.background,
-              elevation: 0,
-              pinned: true,
-              toolbarHeight: 70,
-              title: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: colorScheme.primaryContainer,
-                    child: Icon(Icons.person_outline_rounded, color: colorScheme.primary),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Halo, User 👋',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Siap memindai struk?',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.settings_outlined),
-                  tooltip: 'Pengaturan',
-                  onPressed: () {},
-                ),
-                IconButton(
-                  icon: const Icon(Icons.notifications_outlined),
-                  tooltip: 'Pengingat Pencatatan',
-                  onPressed: () {},
-                ),
-                const SizedBox(width: 8),
-              ],
-            ),
-            
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -69,52 +25,21 @@ class HomeScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     _buildBalanceCard(theme),
                     const SizedBox(height: 24),
-                    
                     _buildTopCategories(theme),
                     const SizedBox(height: 24),
-                    
-                    _buildMonthlyWrappedBanner(theme),
+                    _buildMonthlyWrappedBanner(context, theme),
                     const SizedBox(height: 32),
-                    
-                    _buildRecentReceiptsHeader(theme),
+                    _buildRecentReceiptsHeader(context, theme), // Mengirim context/callback
                     const SizedBox(height: 12),
                   ],
                 ),
               ),
             ),
-            
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               sliver: _buildReceiptList(theme),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 40)), 
-          ],
-        ),
-      ),
-      
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        elevation: 4,
-        backgroundColor: colorScheme.primary,
-        foregroundColor: colorScheme.onPrimary,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.camera_alt_rounded, size: 28),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8.0,
-        color: theme.colorScheme.surface,
-        elevation: 10,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildBottomNavIcon(Icons.home_rounded, 'Beranda', true, theme),
-            _buildBottomNavIcon(Icons.pie_chart_rounded, 'Statistik', false, theme),
-            const SizedBox(width: 40),
-            _buildBottomNavIcon(Icons.receipt_long_rounded, 'Semua Resi', false, theme),
-            _buildBottomNavIcon(Icons.person_rounded, 'Profil', false, theme),
+            const SliverToBoxAdapter(child: SizedBox(height: 100)), 
           ],
         ),
       ),
@@ -212,9 +137,14 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMonthlyWrappedBanner(ThemeData theme) {
+  Widget _buildMonthlyWrappedBanner(BuildContext context, ThemeData theme) {
     return InkWell(
-      onTap: () {},
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const MonthlyWrappedScreen()),
+        );
+      },
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -258,13 +188,13 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentReceiptsHeader(ThemeData theme) {
+  Widget _buildRecentReceiptsHeader(BuildContext context, ThemeData theme) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text('Riwayat Struk', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
         TextButton(
-          onPressed: () {},
+          onPressed: onViewAllPressed, // Menjalankan fungsi saat diklik
           style: TextButton.styleFrom(foregroundColor: theme.colorScheme.primary),
           child: const Text('Lihat Semua'),
         ),
@@ -276,23 +206,37 @@ class HomeScreen extends StatelessWidget {
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
-          return InkWell(
-            onTap: () {},
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
+          bool isSupermarket = index == 0;
+          String title = isSupermarket ? 'Struk Supermarket' : 'Resi M-Banking / E-Wallet';
+          String subtitle = isSupermarket ? '12 Item • Hari ini, 19:30' : '1 Item • Kemarin, 14:15';
+          String amount = isSupermarket ? '-Rp 345.000' : '-Rp 150.000';
+          IconData iconData = isSupermarket ? Icons.receipt_long_rounded : Icons.share_rounded;
+          Color accentColor = isSupermarket ? Colors.orange : Colors.blue;
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16.0),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceVariant.withOpacity(0.25),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withOpacity(0.4),
+                ),
+              ),
               child: Row(
                 children: [
                   Container(
-                    height: 50,
-                    width: 50,
+                    height: 52,
+                    width: 52,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceVariant,
+                      color: accentColor.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
-                      index == 0 ? Icons.receipt_long_rounded : Icons.share_rounded, 
-                      color: theme.colorScheme.onSurfaceVariant
+                      iconData,
+                      color: accentColor,
+                      size: 24,
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -301,20 +245,51 @@ class HomeScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          index == 0 ? 'Struk Supermarket' : 'Resi M-Banking',
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                          title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          index == 0 ? '12 Item • Hari ini, 19:30' : '1 Item • Kemarin, 14:15',
-                          style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6), fontSize: 12),
+                          subtitle,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  Text(
-                    index == 0 ? '-Rp 345.000' : '-Rp 150.000',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.redAccent),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        amount,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'Berhasil',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -323,28 +298,6 @@ class HomeScreen extends StatelessWidget {
         },
         childCount: 3, 
       ),
-    );
-  }
-
-  Widget _buildBottomNavIcon(IconData icon, String label, bool isActive, ThemeData theme) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          icon,
-          color: isActive ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-            color: isActive ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
     );
   }
 }

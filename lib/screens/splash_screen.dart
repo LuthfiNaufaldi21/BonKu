@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'home_screen.dart';
+import 'main_nav_screen.dart'; 
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -13,10 +13,9 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Berpindah ke HomeScreen setelah 5 detik
     Timer(const Duration(seconds: 3), () {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        MaterialPageRoute(builder: (context) => const MainNavScreen()),
       );
     });
   }
@@ -28,14 +27,12 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Placeholder Logo (Kamu bisa ganti dengan Image.asset nanti)
             Icon(
               Icons.receipt_long_rounded, 
               size: 120,
               color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(height: 20),
-            // Nama Aplikasi (Sesuai SRS: Ruang Lingkup)
             Text(
               'BonKu',
               style: TextStyle(
