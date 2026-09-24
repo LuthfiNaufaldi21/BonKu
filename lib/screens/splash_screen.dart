@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import 'dart:async';
-import 'main_nav_screen.dart'; 
+
+import 'auth_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -10,14 +12,23 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  Timer? _navigationTimer;
+
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 3), () {
+    _navigationTimer = Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const MainNavScreen()),
+        MaterialPageRoute(builder: (context) => const AuthScreen()),
       );
     });
+  }
+
+  @override
+  void dispose() {
+    _navigationTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -28,7 +39,7 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.receipt_long_rounded, 
+              Icons.receipt_long_rounded,
               size: 120,
               color: Theme.of(context).colorScheme.primary,
             ),
