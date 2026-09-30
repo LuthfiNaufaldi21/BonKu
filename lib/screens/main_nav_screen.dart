@@ -4,6 +4,8 @@ import 'statistik_screen.dart';
 import 'semua_resi_screen.dart';
 import 'profil_screen.dart';
 import 'confirmation_screen.dart';
+import 'pengaturan_screen.dart';
+import 'notifikasi_screen.dart'; // Menambahkan import layar notifikasi
 
 class MainNavScreen extends StatefulWidget {
   const MainNavScreen({super.key});
@@ -69,13 +71,25 @@ class _MainNavScreenState extends State<MainNavScreen> {
           ],
         ),
         actions: [
+          // Tombol Pengaturan (Gerigi)
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PengaturanScreen()),
+              );
+            },
           ),
+          // Tombol Notifikasi (Lonceng)
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotifikasiScreen()),
+              );
+            },
           ),
           const SizedBox(width: 8),
         ],
@@ -96,12 +110,11 @@ class _MainNavScreenState extends State<MainNavScreen> {
             ),
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center, // Memastikan semua item sejajar di tengah
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(child: _buildNavItem(Icons.home_rounded, 'Beranda', 0, theme)),
               Expanded(child: _buildNavItem(Icons.pie_chart_rounded, 'Statistik', 1, theme)),
               
-              // Tombol QR dibuat lebih besar (56x56) dan diposisikan pas di tengah
               Expanded(
                 child: Center(
                   child: InkWell(
@@ -129,7 +142,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
                       child: Icon(
                         Icons.qr_code_scanner_rounded, 
                         color: colorScheme.onPrimary, 
-                        size: 28, // Ukuran ikon diperbesar
+                        size: 28,
                       ),
                     ),
                   ),

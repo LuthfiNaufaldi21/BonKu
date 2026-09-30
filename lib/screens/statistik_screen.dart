@@ -10,7 +10,7 @@ class StatistikScreen extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.background,
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -47,6 +47,7 @@ class StatistikScreen extends StatelessWidget {
     );
   }
 
+  // Tampilan Monthly Wrapped dikembalikan ke desain aslinya
   Widget _buildMonthlyWrappedCard(BuildContext context, ThemeData theme) {
     return Container(
       width: double.infinity,
@@ -121,7 +122,6 @@ class StatistikScreen extends StatelessWidget {
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: theme.colorScheme.outlineVariant.withOpacity(0.5)),
           ),
           child: const Center(
             child: Column(
@@ -142,7 +142,7 @@ class StatistikScreen extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('Kategori Terbesar', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        Text('Riwayat Transaksi', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
         TextButton(
           onPressed: () {},
           style: TextButton.styleFrom(foregroundColor: theme.colorScheme.primary),
@@ -153,55 +153,113 @@ class StatistikScreen extends StatelessWidget {
   }
 
   Widget _buildCategoryList(ThemeData theme) {
-    final categories = [
-      {'name': 'Makanan', 'percent': '45%', 'amount': 'Rp 1.417.500', 'icon': Icons.fastfood_rounded, 'color': Colors.orange},
-      {'name': 'Transport', 'percent': '30%', 'amount': 'Rp 945.000', 'icon': Icons.directions_car_rounded, 'color': Colors.blue},
-      {'name': 'Belanja', 'percent': '15%', 'amount': 'Rp 472.500', 'icon': Icons.shopping_bag_rounded, 'color': Colors.purple},
+    final items = [
+      {
+        'title': 'Struk Supermarket',
+        'subtitle': '12 Item • Hari ini, 19:30',
+        'amount': '-Rp 345.000',
+        'status': 'Berhasil',
+        'icon': Icons.receipt_long_rounded,
+        'iconColor': Colors.orange
+      },
+      {
+        'title': 'Resi M-Banking / E-Wallet',
+        'subtitle': '1 Item • Kemarin, 14:15',
+        'amount': '-Rp 150.000',
+        'status': 'Berhasil',
+        'icon': Icons.share_rounded,
+        'iconColor': Colors.blue
+      },
+      {
+        'title': 'Resi M-Banking / E-Wallet',
+        'subtitle': '1 Item • Kemarin, 14:15',
+        'amount': '-Rp 150.000',
+        'status': 'Berhasil',
+        'icon': Icons.share_rounded,
+        'iconColor': Colors.blue
+      },
     ];
 
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
-          final cat = categories[index];
-          final Color color = cat['color'] as Color;
+          final item = items[index];
+          final Color iconColor = item['iconColor'] as Color;
           
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12.0),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: color.withOpacity(0.2)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(cat['icon'] as IconData, color: color, size: 20),
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  height: 48,
+                  width: 48,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceVariant,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(cat['name'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        const SizedBox(height: 2),
-                        Text('Persentase: ${cat['percent']}', style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
+                  child: Icon(
+                    item['icon'] as IconData, 
+                    color: iconColor,
+                    size: 24,
                   ),
-                  Text(cat['amount'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                ],
-              ),
+                ),
+                const SizedBox(width: 16),
+                
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['title'] as String,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item['subtitle'] as String,
+                        style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      item['amount'] as String,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold, 
+                        fontSize: 14, 
+                        color: Colors.redAccent, 
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item['status'] as String,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600, 
+                        fontSize: 11, 
+                        color: Colors.green, 
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           );
         },
-        childCount: categories.length,
+        childCount: items.length,
       ),
     );
   }

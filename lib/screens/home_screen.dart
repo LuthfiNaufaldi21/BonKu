@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'monthly_wrapped_screen.dart'; // Menambahkan import layar temanmu
+import 'monthly_wrapped_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final VoidCallback onViewAllPressed;
@@ -18,14 +18,16 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
+                
+                // Kartu Saldo / Total Pengeluaran Utama
                 _buildBalanceCard(theme),
                 const SizedBox(height: 24),
                 
                 _buildTopCategories(theme),
                 const SizedBox(height: 24),
                 
-                _buildMonthlyWrappedBanner(context, theme), // Memasukkan context untuk navigasi
+                _buildMonthlyWrappedBanner(context, theme),
                 const SizedBox(height: 32),
                 
                 _buildRecentReceiptsHeader(theme),
@@ -154,7 +156,6 @@ class HomeScreen extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
-          // Navigasi aktif menuju MonthlyWrappedScreen
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const MonthlyWrappedScreen()),
