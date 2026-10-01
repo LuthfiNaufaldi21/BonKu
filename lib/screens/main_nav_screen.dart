@@ -119,11 +119,53 @@ class _MainNavScreenState extends State<MainNavScreen> {
                 child: Center(
                   child: InkWell(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const ConfirmationScreen()),
-                      );
-                    },
+                    showModalBottomSheet(
+                      context: context,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                      ),
+                      builder: (BuildContext context) {
+                        return SafeArea(
+                          child: Wrap(
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
+                                child: Text(
+                                  'Pilih Sumber Struk',
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.camera_alt, color: Colors.teal),
+                                title: const Text('Ambil Foto Struk Fisik'),
+                                subtitle: const Text('Gunakan kamera perangkat (FR-02)'),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const ConfirmationScreen()),
+                                  );
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.image, color: Colors.teal),
+                                title: const Text('Pilih dari Galeri / Resi Digital'),
+                                subtitle: const Text('Impor tangkapan layar / share intent (FR-01)'),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const ConfirmationScreen()),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
                     borderRadius: BorderRadius.circular(28),
                     child: Container(
                       height: 56,

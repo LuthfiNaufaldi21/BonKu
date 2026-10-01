@@ -47,7 +47,13 @@ class PengaturanScreen extends StatelessWidget {
             title: 'Pengingat Pencatatan', 
             subtitle: 'Notifikasi harian & bulanan', 
             iconColor: Colors.orange,
-            onTap: () {},
+            trailing: Switch(value: true, onChanged: (val){
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(val ? 'Pengingat diaktifkan' : 'Pengingat dimatikan')),
+                );
+              },
+            activeColor: theme.colorScheme.primary,
+            ),
           ),
           const SizedBox(height: 24),
           

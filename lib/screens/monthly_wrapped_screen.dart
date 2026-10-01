@@ -1,79 +1,180 @@
 import 'package:flutter/material.dart';
 
-class MonthlyWrappedScreen extends StatelessWidget {
+class MonthlyWrappedScreen extends StatefulWidget {
   const MonthlyWrappedScreen({super.key});
+
+  @override
+  State<MonthlyWrappedScreen> createState() => _MonthlyWrappedScreenState();
+}
+
+class _MonthlyWrappedScreenState extends State<MonthlyWrappedScreen> {
+  final PageController _pageController = PageController();
+  int _currentIndex = 0;
+  final int _totalPages = 4;
+
+  void _nextPage() {
+    if (_currentIndex < _totalPages - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      Navigator.pop(context); // Selesai, kembali ke beranda
+    }
+  }
+
+  void _previousPage() {
+    if (_currentIndex > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.deepPurple.shade900,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('BonKu Monthly Wrapped', style: TextStyle(color: Colors.white, fontSize: 16)),
-      ),
+      backgroundColor: Colors.black,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.auto_awesome, color: Colors.yellowAccent),
-                  SizedBox(width: 8),
-                  Text(
-                    'EVALUASI BULANAN',
-                    style: TextStyle(color: Colors.white70, letterSpacing: 1.5, fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Total pengeluaran Anda bulan ini adalah Rp 3.150.000',
-                style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold, height: 1.2),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.2)),
+        child: Stack(
+          children: [
+            // Konten Slides (PageView)
+            PageView(
+              controller: _pageController,
+              physics: const NeverScrollableScrollPhysics(), // Disable swipe manual, pakai tap
+              onPageChanged: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              children: [
+                _buildSlide(
+                  colors: [Colors.deepPurpleAccent, Colors.pink],
+                  title: 'Bulan ini cukup liar,\ntapi kamu berhasil\nmelewatinya.',
+                  subtitle: 'Siap melihat seberapa jauh dompetmu berjuang?',
                 ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Perbandingan Tren (FR-05)',
-                      style: TextStyle(color: Colors.yellowAccent, fontWeight: FontWeight.bold),
+                _buildSlide(
+                  colors: [Colors.blue.shade800, Colors.teal],
+                  title: 'Total pengeluaranmu\nbulan ini mencapai...',
+                  subtitle: 'Rp 3.150.000',
+                  isNumberHuge: true,
+                ),
+                _buildSlide(
+                  colors: [Colors.orange.shade800, Colors.redAccent],
+                  title: 'Ternyata, uangmu\npaling banyak habis di...',
+                  subtitle: '🍔 Konsumsi',
+                  isNumberHuge: true,
+                ),
+                _buildSlide(
+                  colors: [Colors.green.shade800, Colors.lightGreen],
+                  title: 'Kabar baiknya!',
+                  subtitle: 'Pengeluaranmu turun 15% dibandingkan bulan lalu. Pertahankan!',
+                ),
+              ],
+            ),
+
+            // Bar Indikator Progres (Mirip Story Spotify/IG)
+            Positioned(
+              top: 16,
+              left: 16,
+              right: 16,
+              child: Row(
+                children: List.generate(_totalPages, (index) {
+                  return Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: index <= _currentIndex
+                            ? Colors.white
+                            : Colors.white.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Pengeluaran kategori Makanan meningkat 12% dibanding bulan lalu, sementara Transportasi berhasil dihemat sebesar 5%.',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
-                  ],
-                ),
+                  );
+                }),
               ),
-              const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.deepPurple.shade900,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+
+            // Sensor Sentuhan Layar (Kiri untuk Prev, Kanan untuk Next)
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _previousPage,
+                    behavior: HitTestBehavior.opaque,
                   ),
-                  child: const Text('Tutup Wrapped', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: GestureDetector(
+                    onTap: _nextPage,
+                    behavior: HitTestBehavior.opaque,
+                  ),
+                ),
+              ],
+            ),
+            
+            // Tombol Skip (Opsional)
+            Positioned(
+              top: 32,
+              right: 16,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Tutup',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  // Widget Builder untuk Setiap Halaman
+  Widget _buildSlide({
+    required List<Color> colors,
+    required String title,
+    required String subtitle,
+    bool isNumberHuge = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: colors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      padding: const EdgeInsets.all(32.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              height: 1.2,
+              letterSpacing: -1,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: isNumberHuge ? 48 : 20,
+              fontWeight: isNumberHuge ? FontWeight.w900 : FontWeight.w500,
+              color: isNumberHuge ? Colors.yellowAccent : Colors.white70,
+              height: 1.2,
+            ),
+          ),
+        ],
       ),
     );
   }
