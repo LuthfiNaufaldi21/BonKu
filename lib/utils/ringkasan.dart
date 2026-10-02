@@ -10,6 +10,14 @@ class Ringkasan {
     return DateTime(terbaru.year, terbaru.month);
   }
 
+  static List<DateTime> daftarBulan(List<Transaksi> data) {
+    final kumpulan = <DateTime>{};
+    for (final t in data) {
+      kumpulan.add(DateTime(t.tanggal.year, t.tanggal.month));
+    }
+    return kumpulan.toList()..sort();
+  }
+
   static List<Transaksi> pada(List<Transaksi> data, DateTime bulan) => data
       .where((t) => t.tanggal.year == bulan.year && t.tanggal.month == bulan.month)
       .toList();

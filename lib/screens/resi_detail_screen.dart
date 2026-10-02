@@ -6,14 +6,38 @@ import '../providers/kategori_provider.dart';
 import '../providers/transaksi_provider.dart';
 import '../utils/format.dart';
 import '../utils/helpers.dart';
+import '../widgets/dialogs.dart';
 import '../widgets/state_views.dart';
+import 'confirmation_screen.dart';
 
-/// Detail satu resi. Menerima ID (bukan objek) agar selalu membaca data terbaru
-/// dan bisa menangani ID yang tidak valid.
+
 class ResiDetailScreen extends StatelessWidget {
   final String transaksiId;
 
   const ResiDetailScreen({super.key, required this.transaksiId});
+
+  Future<void> _hapus(BuildContext context, Transaksi t) async {
+    final provider = context.read<TransaksiProvider>();
+    final ya = await konfirmasiHapus(
+      context,
+      judul: 'Hapus resi?',
+      pesan: 'Resi "${t.toko}" (${t.items.length} item, ${Format.rupiah(t.total)}) '
+          'akan dihapus permanen.',
+    );
+    if (!ya || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final ok = await provider.hapus(t.id);
+    if (ok) {
+      if (context.mounted) navigator.pop();
+      messenger.showSnackBar(const SnackBar(content: Text('Resi dihapus.')));
+    } else {
+      messenger.showSnackBar(
+        SnackBar(content: Text(provider.errorMessage ?? 'Gagal menghapus. Coba lagi.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +60,26 @@ class ResiDetailScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Detail Resi')),
+      appBar: AppBar(
+        title: const Text('Detail Resi'),
+        actions: [
+          if (t != null)
+            IconButton(
+              tooltip: 'Edit',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ConfirmationScreen(transaksi: t)),
+              ),
+            ),
+          if (t != null)
+            IconButton(
+              tooltip: 'Hapus',
+              icon: const Icon(Icons.delete_outline_rounded),
+              onPressed: trx.isSubmitting ? null : () => _hapus(context, t),
+            ),
+        ],
+      ),
       body: SafeArea(child: body),
     );
   }

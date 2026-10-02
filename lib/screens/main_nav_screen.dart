@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'home_screen.dart';
-import 'statistik_screen.dart';
-import 'semua_resi_screen.dart';
-import 'profil_screen.dart';
+
+import '../models/transaksi.dart';
 import 'confirmation_screen.dart';
+import 'home_screen.dart';
+import 'notifikasi_screen.dart';
 import 'pengaturan_screen.dart';
-import 'notifikasi_screen.dart'; // Menambahkan import layar notifikasi
+import 'profil_screen.dart';
+import 'semua_resi_screen.dart';
+import 'statistik_screen.dart';
 
 class MainNavScreen extends StatefulWidget {
   const MainNavScreen({super.key});
@@ -30,15 +32,66 @@ class _MainNavScreenState extends State<MainNavScreen> {
     const ProfilScreen(),
   ];
 
+  void _bukaForm(SumberResi sumber) {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ConfirmationScreen(sumber: sumber)),
+    );
+  }
+
+  void _pilihSumber() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
+                child: Text(
+                  'Pilih Sumber Struk',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Colors.teal),
+                title: const Text('Ambil Foto Struk Fisik'),
+                subtitle: const Text('Gunakan kamera perangkat'),
+                onTap: () => _bukaForm(SumberResi.kamera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.image, color: Colors.teal),
+                title: const Text('Pilih dari Galeri'),
+                subtitle: const Text('Impor tangkapan layar'),
+                onTap: () => _bukaForm(SumberResi.share),
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit_note_rounded, color: Colors.teal),
+                title: const Text('Input Manual'),
+                subtitle: const Text('Isi data pengeluaran tanpa scan'),
+                onTap: () => _bukaForm(SumberResi.manual),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.background,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: colorScheme.background,
+        backgroundColor: colorScheme.surface,
         elevation: 0,
         toolbarHeight: 75,
         title: Row(
@@ -71,7 +124,6 @@ class _MainNavScreenState extends State<MainNavScreen> {
           ],
         ),
         actions: [
-          // Tombol Pengaturan (Gerigi)
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () {
@@ -81,7 +133,6 @@ class _MainNavScreenState extends State<MainNavScreen> {
               );
             },
           ),
-          // Tombol Notifikasi (Lonceng)
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () {
@@ -94,19 +145,17 @@ class _MainNavScreenState extends State<MainNavScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
       ),
-      
       bottomNavigationBar: SafeArea(
         child: Container(
           height: 70,
           decoration: BoxDecoration(
             color: colorScheme.surface,
             border: Border(
-              top: BorderSide(color: colorScheme.outline.withOpacity(0.1)),
+              top: BorderSide(color: colorScheme.outline.withValues(alpha: 0.1)),
             ),
           ),
           child: Row(
@@ -114,58 +163,10 @@ class _MainNavScreenState extends State<MainNavScreen> {
             children: [
               Expanded(child: _buildNavItem(Icons.home_rounded, 'Beranda', 0, theme)),
               Expanded(child: _buildNavItem(Icons.pie_chart_rounded, 'Statistik', 1, theme)),
-              
               Expanded(
                 child: Center(
                   child: InkWell(
-                    onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                      ),
-                      builder: (BuildContext context) {
-                        return SafeArea(
-                          child: Wrap(
-                            children: [
-                              const Padding(
-                                padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
-                                child: Text(
-                                  'Pilih Sumber Struk',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              ListTile(
-                                leading: const Icon(Icons.camera_alt, color: Colors.teal),
-                                title: const Text('Ambil Foto Struk Fisik'),
-                                subtitle: const Text('Gunakan kamera perangkat (FR-02)'),
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => const ConfirmationScreen()),
-                                  );
-                                },
-                              ),
-                              ListTile(
-                                leading: const Icon(Icons.image, color: Colors.teal),
-                                title: const Text('Pilih dari Galeri / Resi Digital'),
-                                subtitle: const Text('Impor tangkapan layar / share intent (FR-01)'),
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => const ConfirmationScreen()),
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 10),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  },
+                    onTap: _pilihSumber,
                     borderRadius: BorderRadius.circular(28),
                     child: Container(
                       height: 56,
@@ -175,22 +176,21 @@ class _MainNavScreenState extends State<MainNavScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: colorScheme.primary.withOpacity(0.3),
+                            color: colorScheme.primary.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
-                          )
+                          ),
                         ],
                       ),
                       child: Icon(
-                        Icons.qr_code_scanner_rounded, 
-                        color: colorScheme.onPrimary, 
+                        Icons.qr_code_scanner_rounded,
+                        color: colorScheme.onPrimary,
                         size: 28,
                       ),
                     ),
                   ),
                 ),
               ),
-
               Expanded(child: _buildNavItem(Icons.receipt_long_rounded, 'Semua Resi', 2, theme)),
               Expanded(child: _buildNavItem(Icons.person_rounded, 'Profil', 3, theme)),
             ],

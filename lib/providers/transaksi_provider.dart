@@ -14,7 +14,14 @@ class TransaksiProvider extends ChangeNotifier {
   String? _errorMessage;
   bool _isSubmitting = false;
 
-  bool simulasiGagal = false;
+  bool _simulasiGagal = false;
+
+  bool get simulasiGagal => _simulasiGagal;
+  set simulasiGagal(bool nilai) {
+    if (nilai == _simulasiGagal) return;
+    _simulasiGagal = nilai;
+    notifyListeners();
+  }
 
   List<Transaksi> get items => List.unmodifiable(_items);
   LoadStatus get status => _status;
@@ -35,7 +42,7 @@ class TransaksiProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      _items = await _repo.getAll(simulateError: simulasiGagal);
+      _items = await _repo.getAll(simulateError: _simulasiGagal);
       _status = LoadStatus.success;
     } catch (e) {
       _status = LoadStatus.error;
@@ -45,13 +52,13 @@ class TransaksiProvider extends ChangeNotifier {
   }
 
   Future<bool> tambah(Transaksi t) =>
-      _jalankan(() => _repo.tambah(t, simulateError: simulasiGagal));
+      _jalankan(() => _repo.tambah(t, simulateError: _simulasiGagal));
 
   Future<bool> ubah(Transaksi t) =>
-      _jalankan(() => _repo.ubah(t, simulateError: simulasiGagal));
+      _jalankan(() => _repo.ubah(t, simulateError: _simulasiGagal));
 
   Future<bool> hapus(String id) =>
-      _jalankan(() => _repo.hapus(id, simulateError: simulasiGagal));
+      _jalankan(() => _repo.hapus(id, simulateError: _simulasiGagal));
 
   Future<bool> _jalankan(Future<void> Function() aksi) async {
     if (_isSubmitting) return false; 

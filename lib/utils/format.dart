@@ -43,6 +43,17 @@ class Format {
   static String bulanTahun(DateTime d) =>
       '${_bulanPanjang[d.month - 1]} ${d.year}';
 
+  static String ringkas(int nilai) {
+    if (nilai >= 1000000) {
+      final v = nilai / 1000000;
+      var s = v.toStringAsFixed(v >= 10 ? 0 : 1).replaceAll('.', ',');
+      if (s.endsWith(',0')) s = s.substring(0, s.length - 2);
+      return '$s jt';
+    }
+    if (nilai >= 1000) return '${(nilai / 1000).round()} rb';
+    return '$nilai';
+  }
+
   static String labelSumber(SumberResi s) => switch (s) {
         SumberResi.kamera => 'Kamera',
         SumberResi.share => 'Share',

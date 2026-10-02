@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/theme_provider.dart'; // Sesuaikan path jika letak folder providers berbeda
+import '../providers/kategori_provider.dart';
+import '../providers/theme_provider.dart';
+import '../providers/transaksi_provider.dart';
+import 'kategori_list_screen.dart';
 
 class PengaturanScreen extends StatelessWidget {
   const PengaturanScreen({super.key});
@@ -10,6 +13,8 @@ class PengaturanScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final trx = context.watch<TransaksiProvider>();
+    final kategori = context.read<KategoriProvider>();
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -38,7 +43,7 @@ class PengaturanScreen extends StatelessWidget {
               onChanged: (val) {
                 themeProvider.toggleTheme(val);
               },
-              activeColor: theme.colorScheme.primary,
+              activeThumbColor: theme.colorScheme.primary,
             ),
           ),
           _buildSettingItem(
@@ -52,12 +57,42 @@ class PengaturanScreen extends StatelessWidget {
                 SnackBar(content: Text(val ? 'Pengingat diaktifkan' : 'Pengingat dimatikan')),
                 );
               },
-            activeColor: theme.colorScheme.primary,
+            activeThumbColor: theme.colorScheme.primary,
+            ),
+          ),
+          _buildSettingItem(
+            theme,
+            icon: Icons.bug_report_rounded,
+            title: 'Simulasi Gagal (Demo)',
+            subtitle: 'Paksa pemuatan dan penyimpanan data gagal',
+            iconColor: Colors.redAccent,
+            trailing: Switch(
+              value: trx.simulasiGagal,
+              onChanged: (val) {
+                trx.simulasiGagal = val;
+                kategori.simulasiGagal = val;
+                trx.muat();
+                kategori.muat();
+              },
+              activeThumbColor: theme.colorScheme.primary,
             ),
           ),
           const SizedBox(height: 24),
           
           _buildSectionTitle(theme, 'Keamanan & Data'),
+          _buildSettingItem(
+            theme,
+            icon: Icons.category_rounded,
+            title: 'Kelola Kategori',
+            subtitle: 'Tambah, ubah, dan hapus kategori pengeluaran',
+            iconColor: Colors.deepPurple,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const KategoriListScreen()),
+              );
+            },
+          ),
           _buildSettingItem(
             theme, 
             icon: Icons.security_rounded, 
@@ -95,7 +130,6 @@ class PengaturanScreen extends StatelessWidget {
           ),
           const SizedBox(height: 32),
           
-          // Tombol Keluar (Logout)
           _buildLogoutButton(theme),
           const SizedBox(height: 40),
         ],
@@ -129,16 +163,16 @@ class PengaturanScreen extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Container(
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceVariant.withOpacity(0.2),
+          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: theme.colorScheme.outlineVariant.withOpacity(0.3)),
+          border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
         ),
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           leading: Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.12),
+              color: iconColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: iconColor, size: 22),
@@ -162,14 +196,13 @@ class PengaturanScreen extends StatelessWidget {
       height: 54,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
       ),
       child: Material(
-        color: Colors.redAccent.withOpacity(0.1),
+        color: Colors.redAccent.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: () {
-            // TODO: Logika logout
           },
           borderRadius: BorderRadius.circular(16),
           child: const Center(

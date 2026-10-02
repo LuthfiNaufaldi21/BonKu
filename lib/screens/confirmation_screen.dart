@@ -1,202 +1,506 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+
+import '../data/seed_data.dart';
+import '../models/item_transaksi.dart';
+import '../models/transaksi.dart';
+import '../providers/kategori_provider.dart';
+import '../providers/transaksi_provider.dart';
+import '../utils/format.dart';
+import '../utils/helpers.dart';
+import '../widgets/state_views.dart';
+
+class _ItemForm {
+  _ItemForm({this.id, String nama = '', String? kategoriId, int? harga})
+      : namaC = TextEditingController(text: nama),
+        hargaC = TextEditingController(text: harga?.toString() ?? ''),
+        key = UniqueKey() {
+    this.kategoriId = kategoriId;
+  }
+
+  final String? id; 
+  final Key key;
+  final TextEditingController namaC;
+  final TextEditingController hargaC;
+  String? kategoriId;
+
+  int get harga => int.tryParse(hargaC.text) ?? 0;
+
+  void dispose() {
+    namaC.dispose();
+    hargaC.dispose();
+  }
+}
 
 class ConfirmationScreen extends StatefulWidget {
-  // Nantinya imagePath dan initialItems akan dikirim dari layar sebelumnya (Kamera/Share)
-  const ConfirmationScreen({super.key});
+  final Transaksi? transaksi;
+  final SumberResi sumber;
+
+  const ConfirmationScreen({
+    super.key,
+    this.transaksi,
+    this.sumber = SumberResi.kamera,
+  });
 
   @override
   State<ConfirmationScreen> createState() => _ConfirmationScreenState();
 }
 
 class _ConfirmationScreenState extends State<ConfirmationScreen> {
-  // Data dummy meniru hasil kembalian dari Gemini API (FR-03 & FR-04)
-  final List<Map<String, dynamic>> _scannedItems = [
-    {
-      'name': 'Nasi Goreng Spesial',
-      'category': 'Konsumsi',
-      'price': 25000,
-    },
-    {
-      'name': 'Buku Tulis Sinar Dunia',
-      'category': 'Edukasi',
-      'price': 15000,
-    },
-    {
-      'name': 'Barang Tidak Jelas AAA',
-      'category': 'Lain-lain / Belum Dikategorikan', // Sesuai FR-03
-      'price': 50000,
+  static const _maksHarga = 100000000;
+
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _tokoC;
+  late final TextEditingController _catatanC;
+  late final TextEditingController _tanggalC;
+  late final TextEditingController _jamC;
+  late DateTime _tanggal;
+  late SumberResi _sumber;
+  final List<_ItemForm> _items = [];
+
+  bool get _edit => widget.transaksi != null;
+  bool get _hasilScan => !_edit && _sumber != SumberResi.manual;
+
+  @override
+  void initState() {
+    super.initState();
+    final t = widget.transaksi;
+    _sumber = t?.sumber ?? widget.sumber;
+    _tanggal = t?.tanggal ?? DateTime.now();
+    _tokoC = TextEditingController(text: t?.toko ?? '');
+    _catatanC = TextEditingController(text: t?.catatan ?? '');
+    _tanggalC = TextEditingController(text: Format.tanggalPanjang(_tanggal));
+    _jamC = TextEditingController(text: Format.jam(_tanggal));
+
+    if (t != null) {
+      for (final i in t.items) {
+        _items.add(_ItemForm(
+          id: i.id,
+          nama: i.nama,
+          kategoriId: i.kategoriId,
+          harga: i.harga,
+        ));
+      }
+    } else if (_sumber == SumberResi.manual) {
+      _items.add(_ItemForm(kategoriId: SeedData.katLain));
+    } else {
+      _items.addAll([
+        _ItemForm(nama: 'Nasi Goreng Spesial', kategoriId: SeedData.katKonsumsi, harga: 25000),
+        _ItemForm(nama: 'Buku Tulis Sinar Dunia', kategoriId: SeedData.katEdukasi, harga: 15000),
+        _ItemForm(nama: 'Barang Tidak Jelas AAA', kategoriId: SeedData.katLain, harga: 50000),
+      ]);
     }
-  ];
+  }
 
-  final List<String> _categories = [
-    'Konsumsi',
-    'Transportasi',
-    'Edukasi',
-    'Kesehatan',
-    'Hiburan',
-    'Lain-lain / Belum Dikategorikan'
-  ];
+  @override
+  void dispose() {
+    _tokoC.dispose();
+    _catatanC.dispose();
+    _tanggalC.dispose();
+    _jamC.dispose();
+    for (final i in _items) {
+      i.dispose();
+    }
+    super.dispose();
+  }
 
-  int get _calculateTotal {
-    return _scannedItems.fold(0, (sum, item) => sum + (item['price'] as int));
+  int get _total => _items.fold(0, (sum, i) => sum + i.harga);
+
+  Future<void> _pilihTanggal() async {
+    final sekarang = DateTime.now();
+    final hasil = await showDatePicker(
+      context: context,
+      initialDate: _tanggal.isAfter(sekarang) ? sekarang : _tanggal,
+      firstDate: DateTime(2020),
+      lastDate: sekarang,
+    );
+    if (hasil == null) return;
+    setState(() {
+      _tanggal = DateTime(hasil.year, hasil.month, hasil.day, _tanggal.hour, _tanggal.minute);
+      _tanggalC.text = Format.tanggalPanjang(_tanggal);
+    });
+  }
+
+  Future<void> _pilihJam() async {
+    final hasil = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_tanggal),
+    );
+    if (hasil == null) return;
+    setState(() {
+      _tanggal = DateTime(_tanggal.year, _tanggal.month, _tanggal.day, hasil.hour, hasil.minute);
+      _jamC.text = Format.jam(_tanggal);
+    });
+  }
+
+  void _tambahItem() {
+    setState(() => _items.add(_ItemForm(kategoriId: SeedData.katLain)));
+  }
+
+  void _hapusItem(int index) {
+    final item = _items.removeAt(index);
+    item.dispose();
+    setState(() {});
+  }
+
+  Future<void> _simpan() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    final provider = context.read<TransaksiProvider>();
+    if (provider.isSubmitting) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    final id = widget.transaksi?.id ?? IdGenerator.next('trx');
+    final data = Transaksi(
+      id: id,
+      toko: _tokoC.text.trim(),
+      tanggal: _tanggal,
+      sumber: _sumber,
+      catatan: _catatanC.text.trim(),
+      imagePath: widget.transaksi?.imagePath,
+      items: [
+        for (final i in _items)
+          ItemTransaksi(
+            id: i.id ?? IdGenerator.next('itm'),
+            transaksiId: id,
+            nama: i.namaC.text.trim(),
+            kategoriId: i.kategoriId!,
+            harga: i.harga,
+          ),
+      ],
+    );
+
+    final ok = _edit ? await provider.ubah(data) : await provider.tambah(data);
+    if (ok) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(_edit ? 'Perubahan berhasil disimpan.' : 'Resi berhasil disimpan.')),
+      );
+      if (mounted) navigator.pop();
+    } else {
+      messenger.showSnackBar(
+        SnackBar(content: Text(provider.errorMessage ?? 'Gagal menyimpan. Coba lagi.')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final kategori = context.watch<KategoriProvider>();
+    final menyimpan = context.watch<TransaksiProvider>().isSubmitting;
+
+    final judul = _edit
+        ? 'Edit Resi'
+        : (_sumber == SumberResi.manual ? 'Tambah Resi Manual' : 'Validasi Struk');
+
+    Widget body;
+    if (kategori.status == LoadStatus.error) {
+      body = ErrorView(
+        pesan: kategori.errorMessage ?? 'Gagal memuat kategori.',
+        onRetry: kategori.muat,
+      );
+    } else if (kategori.status != LoadStatus.success) {
+      body = const LoadingView(pesan: 'Memuat kategori...');
+    } else {
+      body = _buildForm(kategori);
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Validasi Struk', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        title: Text(judul, style: const TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: cs.primaryContainer,
       ),
-      body: Column(
+      body: body,
+      bottomNavigationBar: kategori.status == LoadStatus.success
+          ? _buildBottomBar(cs, menyimpan)
+          : null,
+    );
+  }
+
+  InputDecoration _dekor(String label, {Widget? suffix, EdgeInsets? padding}) {
+    return InputDecoration(
+      labelText: label,
+      suffixIcon: suffix,
+      border: const OutlineInputBorder(),
+      contentPadding: padding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+    );
+  }
+
+  Widget _buildForm(KategoriProvider kategori) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Form(
+      key: _formKey,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      child: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         children: [
-          // Bagian Atas: Preview Gambar Struk (NFR-02: hanya menampilkan dari Path)
-          Container(
-            height: 150,
-            width: double.infinity,
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+          if (_hasilScan) ...[
+            Container(
+              height: 120,
+              margin: const EdgeInsets.only(top: 16),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.image, size: 40, color: cs.onSurfaceVariant),
+                    Text('Preview Struk Fisik/Digital', style: TextStyle(color: cs.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cs.tertiaryContainer.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
                 children: [
-                  Icon(Icons.image, size: 50, color: Colors.grey),
-                  Text('Preview Struk Fisik/Digital', style: TextStyle(color: Colors.grey)),
+                  Icon(Icons.auto_awesome_rounded, size: 20, color: cs.tertiary),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Hasil simulasi AI. Periksa dan sesuaikan sebelum menyimpan.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
                 ],
               ),
             ),
+          ],
+          const SizedBox(height: 20),
+          Text('Informasi Resi', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _tokoC,
+            maxLength: 50,
+            textInputAction: TextInputAction.next,
+            textCapitalization: TextCapitalization.words,
+            decoration: _dekor('Nama Toko / Sumber'),
+            validator: (v) {
+              final s = v?.trim() ?? '';
+              if (s.isEmpty) return 'Nama toko wajib diisi';
+              if (s.length < 2) return 'Nama toko minimal 2 karakter';
+              if (s.length > 50) return 'Nama toko maksimal 50 karakter';
+              return null;
+            },
           ),
-          const SizedBox(height: 16),
-          
-          // Daftar Item yang diekstrak
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              itemCount: _scannedItems.length,
-              itemBuilder: (context, index) {
-                final item = _scannedItems[index];
-                return Card(
-                  elevation: 2,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Column(
-                      children: [
-                        // Edit Nama Barang
-                        TextFormField(
-                          initialValue: item['name'],
-                          decoration: const InputDecoration(
-                            labelText: 'Nama Barang',
-                            border: UnderlineInputBorder(),
-                          ),
-                          onChanged: (value) => item['name'] = value,
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            // Ubah Kategori
-                            Expanded(
-                              flex: 3,
-                              child: DropdownButtonFormField<String>(
-                                value: item['category'],
-                                decoration: const InputDecoration(
-                                  labelText: 'Kategori',
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 10),
-                                ),
-                                isExpanded: true,
-                                items: _categories.map((String category) {
-                                  return DropdownMenuItem(
-                                    value: category,
-                                    child: Text(category, overflow: TextOverflow.ellipsis),
-                                  );
-                                }).toList(),
-                                onChanged: (value) {
-                                  setState(() {
-                                    item['category'] = value!;
-                                  });
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            // Edit Harga
-                            Expanded(
-                              flex: 2,
-                              child: TextFormField(
-                                initialValue: item['price'].toString(),
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
-                                  labelText: 'Harga (Rp)',
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 10),
-                                ),
-                                onChanged: (value) {
-                                  setState(() {
-                                    item['price'] = int.tryParse(value) ?? 0;
-                                  });
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      // Tombol Simpan (Bagian Bawah)
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.all(16.0),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 3,
+                child: TextFormField(
+                  controller: _tanggalC,
+                  readOnly: true,
+                  onTap: _pilihTanggal,
+                  decoration: _dekor('Tanggal', suffix: const Icon(Icons.calendar_today_rounded, size: 18)),
+                  validator: (_) => _tanggal.isAfter(DateTime.now())
+                      ? 'Tanggal/jam tidak boleh di masa depan'
+                      : null,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: TextFormField(
+                  controller: _jamC,
+                  readOnly: true,
+                  onTap: _pilihJam,
+                  decoration: _dekor('Jam', suffix: const Icon(Icons.access_time_rounded, size: 18)),
+                ),
               ),
             ],
           ),
-          child: Row(
+          const SizedBox(height: 16),
+          DropdownButtonFormField<SumberResi>(
+            initialValue: _sumber,
+            isExpanded: true,
+            decoration: _dekor('Sumber Resi'),
+            items: [
+              for (final s in SumberResi.values)
+                DropdownMenuItem(value: s, child: Text(Format.labelSumber(s))),
+            ],
+            onChanged: (v) {
+              if (v != null) setState(() => _sumber = v);
+            },
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _catatanC,
+            maxLength: 120,
+            maxLines: 3,
+            minLines: 2,
+            textInputAction: TextInputAction.newline,
+            keyboardType: TextInputType.multiline,
+            decoration: _dekor('Catatan (opsional)'),
+            validator: (v) => (v?.length ?? 0) > 120 ? 'Catatan maksimal 120 karakter' : null,
+          ),
+          const SizedBox(height: 16),
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
+              Text(
+                'Rincian Item (${_items.length})',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              TextButton.icon(
+                onPressed: _tambahItem,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Tambah Item'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (var i = 0; i < _items.length; i++) _buildItemCard(i, kategori),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItemCard(int index, KategoriProvider kategori) {
+    final item = _items[index];
+    // Jika kategori item sudah tidak ada (mis. dihapus), paksa pilih ulang.
+    final kategoriValid = kategori.items.any((k) => k.id == item.kategoriId) ? item.kategoriId : null;
+
+    return Card(
+      key: item.key,
+      elevation: 1,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text('Item ${index + 1}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                const Spacer(),
+                if (_items.length > 1)
+                  IconButton(
+                    tooltip: 'Hapus item',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.delete_outline_rounded),
+                    onPressed: () => _hapusItem(index),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: item.namaC,
+              textInputAction: TextInputAction.next,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: _dekor('Nama Barang'),
+              validator: (v) {
+                final s = v?.trim() ?? '';
+                if (s.isEmpty) return 'Nama barang wajib diisi';
+                if (s.length > 40) return 'Nama barang maksimal 40 karakter';
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: kategoriValid,
+              isExpanded: true,
+              decoration: _dekor('Kategori'),
+              items: [
+                for (final k in kategori.items)
+                  DropdownMenuItem(
+                    value: k.id,
+                    child: Text(k.nama, overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: (v) => setState(() => item.kategoriId = v),
+              validator: (v) => v == null ? 'Pilih kategori' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: item.hargaC,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              textInputAction: TextInputAction.done,
+              decoration: _dekor('Harga (Rp)'),
+              onChanged: (_) => setState(() {}),
+              validator: (v) {
+                final s = v?.trim() ?? '';
+                if (s.isEmpty) return 'Harga wajib diisi';
+                final n = int.tryParse(s);
+                if (n == null || n <= 0) return 'Harga harus lebih dari 0';
+                if (n > _maksHarga) return 'Harga maksimal ${Format.rupiah(_maksHarga)}';
+                return null;
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(ColorScheme cs, bool menyimpan) {
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: cs.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Total Pengeluaran', style: TextStyle(fontSize: 12)),
-                  Text(
-                    'Rp $_calculateTotal',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      Format.rupiah(_total),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: cs.primary,
+                      ),
                     ),
                   ),
                 ],
               ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  // TODO: Hubungkan dengan fungsi insert SQLite terenkripsi (NFR-03)
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Data berhasil disimpan!')),
-                  );
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                ),
-                icon: const Icon(Icons.save),
-                label: const Text('Simpan Data'),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: menyimpan ? null : _simpan,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                backgroundColor: cs.primary,
+                foregroundColor: cs.onPrimary,
               ),
-            ],
-          ),
+              icon: menyimpan
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save),
+              label: Text(menyimpan ? 'Menyimpan...' : (_edit ? 'Simpan Perubahan' : 'Simpan Data')),
+            ),
+          ],
         ),
       ),
     );
