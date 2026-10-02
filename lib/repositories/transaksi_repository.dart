@@ -3,9 +3,12 @@ import '../models/transaksi.dart';
 
 class TransaksiRepository {
   TransaksiRepository({List<Transaksi>? seed})
-      : _data = List.of(seed ?? SeedData.transaksi());
+      : _seed = List.of(seed ?? SeedData.transaksi()) {
+    _data = List.of(_seed);
+  }
 
-  final List<Transaksi> _data;
+  final List<Transaksi> _seed; 
+  late final List<Transaksi> _data;
   static const _jeda = Duration(milliseconds: 700);
 
   List<Transaksi> get snapshot {
@@ -49,5 +52,17 @@ class TransaksiRepository {
     final sebelum = _data.length;
     _data.removeWhere((e) => e.id == id);
     if (_data.length == sebelum) throw Exception('Data tidak ditemukan');
+  }
+
+  Future<void> kosongkan({bool simulateError = false}) async {
+    await _simulasi(simulateError, 'menghapus');
+    _data.clear();
+  }
+
+  Future<void> pulihkan({bool simulateError = false}) async {
+    await _simulasi(simulateError, 'memulihkan');
+    _data
+      ..clear()
+      ..addAll(_seed);
   }
 }

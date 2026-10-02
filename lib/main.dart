@@ -2,17 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/kategori_provider.dart';
+import 'providers/preferensi_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/transaksi_provider.dart';
 import 'repositories/kategori_repository.dart';
 import 'repositories/transaksi_repository.dart';
-import 'screens/splash_screen.dart';
+import 'routes.dart';
 
 void main() {
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => PreferensiProvider()),
         ChangeNotifierProvider(
           create: (_) => KategoriProvider(KategoriRepository())..muat(),
         ),
@@ -50,7 +52,11 @@ class BonKuApp extends StatelessWidget {
         useMaterial3: true,
       ),
       themeMode: themeProvider.themeMode,
-      home: const SplashScreen(),
+      initialRoute: AppRoutes.splash,
+      onGenerateRoute: AppRoutes.generate,
+      onGenerateInitialRoutes: (nama) => [
+        AppRoutes.generate(RouteSettings(name: nama)),
+      ],
     );
   }
 }

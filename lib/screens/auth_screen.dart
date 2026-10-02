@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'package:provider/provider.dart';
+
+import '../providers/preferensi_provider.dart';
 import 'main_nav_screen.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -28,6 +31,11 @@ class _AuthScreenState extends State<AuthScreen> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
+    context.read<PreferensiProvider>().masuk(
+          email: _emailController.text,
+          nama: _isSignUp ? _nameController.text : null,
+        );
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const MainNavScreen()),
     );
@@ -50,7 +58,7 @@ class _AuthScreenState extends State<AuthScreen> {
     final colors = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -62,7 +70,6 @@ class _AuthScreenState extends State<AuthScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Ikon/Logo BonKu
                     Center(
                       child: Container(
                         padding: const EdgeInsets.all(16),
@@ -71,7 +78,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: colors.primary.withOpacity(0.2),
+                              color: colors.primary.withValues(alpha: 0.2),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
                             )
@@ -86,7 +93,6 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     const SizedBox(height: 32),
                     
-                    // Teks Sambutan
                     Text(
                       _isSignUp ? 'Mulai Perjalananmu' : 'Selamat Datang Kembali',
                       textAlign: TextAlign.center,
@@ -107,11 +113,10 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     const SizedBox(height: 32),
 
-                    // Toggle Masuk / Daftar
                     Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: colors.surfaceVariant.withOpacity(0.5),
+                        color: colors.surfaceContainerHighest.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
@@ -127,7 +132,6 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     const SizedBox(height: 32),
 
-                    // Form Inputs
                     if (_isSignUp) ...[
                       TextFormField(
                         controller: _nameController,
@@ -189,7 +193,10 @@ class _AuthScreenState extends State<AuthScreen> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () {},
+                          onPressed: () => showDialog<void>(
+                            context: context,
+                            builder: (_) => _LupaSandiDialog(emailAwal: _emailController.text),
+                          ),
                           style: TextButton.styleFrom(
                             foregroundColor: colors.primary,
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -202,7 +209,6 @@ class _AuthScreenState extends State<AuthScreen> {
                       
                     const SizedBox(height: 8),
 
-                    // Tombol Aksi Utama (Gradient Premium)
                     Container(
                       height: 56,
                       decoration: BoxDecoration(
@@ -214,7 +220,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: colors.primary.withOpacity(0.3),
+                            color: colors.primary.withValues(alpha: 0.3),
                             blurRadius: 12,
                             offset: const Offset(0, 6),
                           )
@@ -254,7 +260,6 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // Helper untuk desain Tab Toggle kustom
   Widget _buildToggleTab(String text, bool isSelected, ColorScheme colors) {
     return GestureDetector(
       onTap: () => _toggleMode(text == 'Daftar'),
@@ -268,7 +273,7 @@ class _AuthScreenState extends State<AuthScreen> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   )
@@ -287,13 +292,12 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // Helper untuk desain Input Field premium
   InputDecoration _buildInputDecoration(String label, IconData icon, ColorScheme colors) {
     return InputDecoration(
       labelText: label,
       prefixIcon: Icon(icon, color: colors.onSurfaceVariant),
       filled: true,
-      fillColor: colors.surfaceVariant.withOpacity(0.3),
+      fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.3),
       labelStyle: TextStyle(color: colors.onSurfaceVariant),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
@@ -315,6 +319,88 @@ class _AuthScreenState extends State<AuthScreen> {
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: colors.error, width: 1.5),
       ),
+    );
+  }
+}
+
+class _LupaSandiDialog extends StatefulWidget {
+  final String emailAwal;
+
+  const _LupaSandiDialog({required this.emailAwal});
+
+  @override
+  State<_LupaSandiDialog> createState() => _LupaSandiDialogState();
+}
+
+class _LupaSandiDialogState extends State<_LupaSandiDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _emailC = TextEditingController(text: widget.emailAwal);
+  bool _mengirim = false;
+
+  @override
+  void dispose() {
+    _emailC.dispose();
+    super.dispose();
+  }
+
+  Future<void> _kirim() async {
+    if (!(_formKey.currentState?.validate() ?? false) || _mengirim) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final email = _emailC.text.trim();
+
+    setState(() => _mengirim = true);
+    await Future<void>.delayed(const Duration(milliseconds: 800)); 
+    navigator.pop();
+    messenger.showSnackBar(
+      SnackBar(content: Text('Tautan reset kata sandi dikirim ke $email (simulasi).')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Lupa kata sandi?'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Masukkan email akunmu. Kami akan mengirim tautan untuk mengatur ulang kata sandi.'),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _emailC,
+              keyboardType: TextInputType.emailAddress,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) {
+                final s = v?.trim() ?? '';
+                if (s.isEmpty) return 'Email wajib diisi';
+                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s)) {
+                  return 'Masukkan email yang valid';
+                }
+                return null;
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _mengirim ? null : () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: _mengirim ? null : _kirim,
+          child: _mengirim
+              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Kirim Tautan'),
+        ),
+      ],
     );
   }
 }

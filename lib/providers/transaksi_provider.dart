@@ -60,6 +60,12 @@ class TransaksiProvider extends ChangeNotifier {
   Future<bool> hapus(String id) =>
       _jalankan(() => _repo.hapus(id, simulateError: _simulasiGagal));
 
+  Future<bool> kosongkan() =>
+      _jalankan(() => _repo.kosongkan(simulateError: _simulasiGagal));
+
+  Future<bool> pulihkan() =>
+      _jalankan(() => _repo.pulihkan(simulateError: _simulasiGagal));
+
   Future<bool> _jalankan(Future<void> Function() aksi) async {
     if (_isSubmitting) return false; 
     _isSubmitting = true;
