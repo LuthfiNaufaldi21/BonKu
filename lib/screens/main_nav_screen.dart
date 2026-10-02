@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../models/transaksi.dart';
@@ -8,6 +9,8 @@ import 'pengaturan_screen.dart';
 import 'profil_screen.dart';
 import 'semua_resi_screen.dart';
 import 'statistik_screen.dart';
+import '../providers/preferensi_provider.dart';
+import 'package:provider/provider.dart';
 
 class MainNavScreen extends StatefulWidget {
   const MainNavScreen({super.key});
@@ -87,6 +90,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final pref = context.watch<PreferensiProvider>(); // Tambahkan ini
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -99,7 +103,14 @@ class _MainNavScreenState extends State<MainNavScreen> {
             CircleAvatar(
               radius: 24,
               backgroundColor: colorScheme.primaryContainer,
-              child: Icon(Icons.person_outline_rounded, color: colorScheme.primary),
+              backgroundImage: pref.fotoProfil != null && pref.fotoProfil!.isNotEmpty
+                  ? (pref.fotoProfil!.startsWith('http')
+                      ? NetworkImage(pref.fotoProfil!) as ImageProvider
+                      : FileImage(File(pref.fotoProfil!)))
+                  : null,
+              child: pref.fotoProfil == null 
+                  ? Icon(Icons.person_outline_rounded, color: colorScheme.primary) 
+                  : null,
             ),
             const SizedBox(width: 16),
             Column(
@@ -107,7 +118,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Halo, User 👋',
+                  'Halo, ${pref.nama.split(" ")[0]} 👋',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),

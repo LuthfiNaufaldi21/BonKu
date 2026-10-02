@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -35,7 +36,7 @@ class ProfilScreen extends StatelessWidget {
             _buildStatistikRingkas(theme, trx, kategori),
             const SizedBox(height: 24),
             Text(
-              'Informasi Akademik & Akun',
+              'Informasi Pribadi',
               style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
@@ -50,6 +51,14 @@ class ProfilScreen extends StatelessWidget {
 
   Widget _buildProfileCard(ThemeData theme, PreferensiProvider pref) {
     final cs = theme.colorScheme;
+    ImageProvider? imageProvider;
+    if (pref.fotoProfil != null && pref.fotoProfil!.isNotEmpty) {
+      if (pref.fotoProfil!.startsWith('http')) {
+        imageProvider = NetworkImage(pref.fotoProfil!);
+      } else {
+        imageProvider = FileImage(File(pref.fotoProfil!));
+      }
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -61,9 +70,10 @@ class ProfilScreen extends StatelessWidget {
       child: Row(
         children: [
           CircleAvatar(
-            radius: 32,
+            radius: 36,
             backgroundColor: cs.primary.withValues(alpha: 0.15),
-            child: Icon(Icons.person_rounded, size: 36, color: cs.primary),
+            backgroundImage: imageProvider,
+            child: pref.fotoProfil == null ? Icon(Icons.person_rounded, size: 36, color: cs.primary) : null,
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -153,9 +163,9 @@ class ProfilScreen extends StatelessWidget {
         children: [
           _buildDetailRow(theme, Icons.badge_rounded, 'ID Pengguna', 'BONKU-99281'),
           garis,
-          _buildDetailRow(theme, Icons.school_rounded, 'Program Studi', pref.programStudi),
+          _buildDetailRow(theme, Icons.phone_rounded, 'No. Telepon', pref.telepon),
           garis,
-          _buildDetailRow(theme, Icons.business_rounded, 'Institusi', pref.institusi),
+          _buildDetailRow(theme, Icons.info_outline_rounded, 'Bio', pref.bio),
           garis,
           _buildDetailRow(theme, Icons.calendar_today_rounded, 'Bergabung', 'September 2026'),
         ],

@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 enum FrekuensiPengingat { harian, bulanan }
 
 class PreferensiProvider extends ChangeNotifier {
-  String _nama = 'User JD Team';
-  String _email = 'mahasiswa@example.com';
-  String _programStudi = 'Ilmu Komputer';
-  String _institusi = 'Universitas Sumatera Utara';
+  String _nama = 'Lutpi D Naupaldi';
+  String _email = 'lutpi@email.com';
+  String _telepon = '081234567890';
+  String _bio = 'Pencatat Keuangan Handal';
+  String? _fotoProfil; 
 
   bool _pengingatAktif = true;
   FrekuensiPengingat _frekuensi = FrekuensiPengingat.harian;
@@ -14,8 +15,9 @@ class PreferensiProvider extends ChangeNotifier {
 
   String get nama => _nama;
   String get email => _email;
-  String get programStudi => _programStudi;
-  String get institusi => _institusi;
+  String get telepon => _telepon;
+  String get bio => _bio;
+  String? get fotoProfil => _fotoProfil;
 
   bool get pengingatAktif => _pengingatAktif;
   FrekuensiPengingat get frekuensi => _frekuensi;
@@ -37,13 +39,15 @@ class PreferensiProvider extends ChangeNotifier {
   void ubahProfil({
     required String nama,
     required String email,
-    required String programStudi,
-    required String institusi,
+    required String telepon,
+    required String bio,
+    String? fotoProfil,
   }) {
     _nama = nama.trim();
     _email = email.trim();
-    _programStudi = programStudi.trim();
-    _institusi = institusi.trim();
+    _telepon = telepon.trim();
+    _bio = bio.trim();
+    if (fotoProfil != null) _fotoProfil = fotoProfil;
     notifyListeners();
   }
 
