@@ -84,31 +84,35 @@ class _AuthScreenState extends State<AuthScreen> {
                             )
                           ],
                         ),
-                        child: Icon(
-                          Icons.receipt_long_rounded,
-                          size: 48,
-                          color: colors.primary,
-                        ),
+                        child: Icon(Icons.receipt_long_rounded, size: 48, color: colors.primary),
                       ),
                     ),
                     const SizedBox(height: 32),
                     
-                    Text(
-                      _isSignUp ? 'Mulai Perjalananmu' : 'Selamat Datang Kembali',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: Text(
+                        _isSignUp ? 'Mulai Perjalananmu' : 'Selamat Datang Kembali',
+                        key: ValueKey<bool>(_isSignUp),
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      _isSignUp
-                          ? 'Buat akun BonKu dan pantau arus kasmu dengan lebih cerdas.'
-                          : 'Masuk untuk melanjutkan evaluasi keuangan otomatis.',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colors.onSurfaceVariant,
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: Text(
+                        _isSignUp
+                            ? 'Buat akun BonKu dan pantau arus kasmu dengan lebih cerdas.'
+                            : 'Masuk untuk melanjutkan evaluasi keuangan otomatis.',
+                        key: ValueKey<bool>(_isSignUp),
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 32),
@@ -121,94 +125,91 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                       child: Row(
                         children: [
-                          Expanded(
-                            child: _buildToggleTab('Masuk', !_isSignUp, colors),
-                          ),
-                          Expanded(
-                            child: _buildToggleTab('Daftar', _isSignUp, colors),
-                          ),
+                          Expanded(child: _buildToggleTab('Masuk', !_isSignUp, colors)),
+                          Expanded(child: _buildToggleTab('Daftar', _isSignUp, colors)),
                         ],
                       ),
                     ),
                     const SizedBox(height: 32),
 
-                    if (_isSignUp) ...[
-                      TextFormField(
-                        controller: _nameController,
-                        textInputAction: TextInputAction.next,
-                        decoration: _buildInputDecoration(
-                          'Nama lengkap',
-                          Icons.person_outline_rounded,
-                          colors,
-                        ),
-                        validator: (value) => _requiredValidator(value, 'Nama lengkap'),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      decoration: _buildInputDecoration(
-                        'Email',
-                        Icons.email_outlined,
-                        colors,
-                      ).copyWith(hintText: 'user@email.com'),
-                      validator: (value) {
-                        final required = _requiredValidator(value, 'Email');
-                        if (required != null) return required;
-                        if (!value!.contains('@')) return 'Masukkan email yang valid';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _submit(),
-                      decoration: _buildInputDecoration(
-                        'Kata sandi',
-                        Icons.lock_outline_rounded,
-                        colors,
-                      ).copyWith(
-                        suffixIcon: IconButton(
-                          tooltip: _obscurePassword ? 'Tampilkan' : 'Sembunyikan',
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                          icon: Icon(
-                            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                            color: colors.onSurfaceVariant,
+                    // Seluruh form dibungkus di sini agar meluncur mulus bersamaan
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.fastOutSlowIn,
+                      alignment: Alignment.topCenter,
+                      child: Column(
+                        children: [
+                          if (_isSignUp)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: TextFormField(
+                                controller: _nameController,
+                                textInputAction: TextInputAction.next,
+                                decoration: _buildInputDecoration('Nama lengkap', Icons.person_outline_rounded, colors),
+                                validator: (value) => _isSignUp ? _requiredValidator(value, 'Nama lengkap') : null,
+                              ),
+                            ),
+                          TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            decoration: _buildInputDecoration('Email', Icons.email_outlined, colors).copyWith(hintText: 'user@email.com'),
+                            validator: (value) {
+                              final required = _requiredValidator(value, 'Email');
+                              if (required != null) return required;
+                              if (!value!.contains('@')) return 'Masukkan email yang valid';
+                              return null;
+                            },
                           ),
-                        ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) => _submit(),
+                            decoration: _buildInputDecoration('Kata sandi', Icons.lock_outline_rounded, colors).copyWith(
+                              suffixIcon: IconButton(
+                                tooltip: _obscurePassword ? 'Tampilkan' : 'Sembunyikan',
+                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                  color: colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                            validator: (value) {
+                              final required = _requiredValidator(value, 'Kata sandi');
+                              if (required != null) return required;
+                              if (value!.length < 6) return 'Minimal 6 karakter';
+                              return null;
+                            },
+                          ),
+                        ],
                       ),
-                      validator: (value) {
-                        final required = _requiredValidator(value, 'Kata sandi');
-                        if (required != null) return required;
-                        if (value!.length < 6) return 'Minimal 6 karakter';
-                        return null;
-                      },
                     ),
                     
-                    if (!_isSignUp)
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () => showDialog<void>(
-                            context: context,
-                            builder: (_) => _LupaSandiDialog(emailAwal: _emailController.text),
-                          ),
-                          style: TextButton.styleFrom(
-                            foregroundColor: colors.primary,
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          ),
-                          child: const Text('Lupa kata sandi?', style: TextStyle(fontWeight: FontWeight.w600)),
-                        ),
-                      )
-                    else
-                      const SizedBox(height: 24),
-                      
-                    const SizedBox(height: 8),
-
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.fastOutSlowIn,
+                      alignment: Alignment.topCenter,
+                      child: !_isSignUp
+                          ? Align(
+                              alignment: Alignment.centerRight,
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: TextButton(
+                                  onPressed: () => showDialog<void>(
+                                    context: context,
+                                    builder: (_) => _LupaSandiDialog(emailAwal: _emailController.text),
+                                  ),
+                                  style: TextButton.styleFrom(foregroundColor: colors.primary),
+                                  child: const Text('Lupa kata sandi?', style: TextStyle(fontWeight: FontWeight.w600)),
+                                ),
+                              ),
+                            )
+                          : const SizedBox(height: 24),
+                    ),
+                    
                     Container(
                       height: 56,
                       decoration: BoxDecoration(
@@ -231,22 +232,12 @@ class _AuthScreenState extends State<AuthScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
-                        icon: Icon(
-                          _isSignUp ? Icons.person_add_alt_1_rounded : Icons.login_rounded,
-                          color: colors.onPrimary,
-                        ),
+                        icon: Icon(_isSignUp ? Icons.person_add_alt_1_rounded : Icons.login_rounded, color: colors.onPrimary),
                         label: Text(
                           _isSignUp ? 'Daftar Sekarang' : 'Masuk',
-                          style: TextStyle(
-                            color: colors.onPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
+                          style: TextStyle(color: colors.onPrimary, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                         ),
                       ),
                     ),
@@ -259,7 +250,6 @@ class _AuthScreenState extends State<AuthScreen> {
       ),
     );
   }
-
   Widget _buildToggleTab(String text, bool isSelected, ColorScheme colors) {
     return GestureDetector(
       onTap: () => _toggleMode(text == 'Daftar'),
@@ -299,26 +289,9 @@ class _AuthScreenState extends State<AuthScreen> {
       filled: true,
       fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.3),
       labelStyle: TextStyle(color: colors.onSurfaceVariant),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: colors.primary, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: colors.error, width: 1),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: colors.error, width: 1.5),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: colors.primary, width: 1.5)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: colors.error)),
     );
   }
 }

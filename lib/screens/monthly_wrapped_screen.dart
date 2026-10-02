@@ -569,7 +569,7 @@ class MonthlyWrappedScreen extends StatelessWidget {
           const _Reveal(
             delay: Duration(milliseconds: 800),
             child: Text(
-              'Terima kasih sudah mencatat! 💜\nKetuk untuk menutup.',
+              'Terima kasih sudah mencatat! 💜',
               style: TextStyle(color: Colors.white70, fontSize: 15, height: 1.4),
             ),
           ),
@@ -602,7 +602,10 @@ class _WrappedPlayerState extends State<_WrappedPlayer> with SingleTickerProvide
     super.initState();
     _progress = AnimationController(vsync: this, duration: const Duration(seconds: 6))
       ..addStatusListener((status) {
-        if (status == AnimationStatus.completed && _index < _jumlah - 1) _lanjut();
+        // Hapus pengecekan kondisi agar _lanjut() dipanggil di semua slide
+        if (status == AnimationStatus.completed) {
+          _lanjut(); 
+        }
       })
       ..forward();
   }

@@ -116,9 +116,14 @@ class _KategoriFormScreenState extends State<KategoriFormScreen> {
               maxLength: 30,
               textInputAction: TextInputAction.done,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Nama Kategori',
-                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.category_outlined, color: cs.onSurfaceVariant),
+                filled: true,
+                fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: cs.primary, width: 1.5)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
               onChanged: (_) => setState(() {}),
               validator: (v) {

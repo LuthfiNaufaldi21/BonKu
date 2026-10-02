@@ -219,12 +219,17 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     );
   }
 
-  InputDecoration _dekor(String label, {Widget? suffix, EdgeInsets? padding}) {
+  InputDecoration _dekor(String label, {Widget? suffix, EdgeInsets? padding, IconData? prefixIcon}) {
+    final cs = Theme.of(context).colorScheme;
     return InputDecoration(
       labelText: label,
       suffixIcon: suffix,
-      border: const OutlineInputBorder(),
-      contentPadding: padding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: cs.onSurfaceVariant) : null,
+      filled: true,
+      fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: cs.primary, width: 1.5)),
+      contentPadding: padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     );
   }
 
@@ -370,78 +375,90 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
 
   Widget _buildItemCard(int index, KategoriProvider kategori) {
     final item = _items[index];
-    // Jika kategori item sudah tidak ada (mis. dihapus), paksa pilih ulang.
     final kategoriValid = kategori.items.any((k) => k.id == item.kategoriId) ? item.kategoriId : null;
+    final cs = Theme.of(context).colorScheme;
 
-    return Card(
+    return Container(
       key: item.key,
-      elevation: 1,
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text('Item ${index + 1}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                const Spacer(),
-                if (_items.length > 1)
-                  IconButton(
-                    tooltip: 'Hapus item',
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.delete_outline_rounded),
-                    onPressed: () => _hapusItem(index),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: item.namaC,
-              textInputAction: TextInputAction.next,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: _dekor('Nama Barang'),
-              validator: (v) {
-                final s = v?.trim() ?? '';
-                if (s.isEmpty) return 'Nama barang wajib diisi';
-                if (s.length > 40) return 'Nama barang maksimal 40 karakter';
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: kategoriValid,
-              isExpanded: true,
-              decoration: _dekor('Kategori'),
-              items: [
-                for (final k in kategori.items)
-                  DropdownMenuItem(
-                    value: k.id,
-                    child: Text(k.nama, overflow: TextOverflow.ellipsis),
-                  ),
-              ],
-              onChanged: (v) => setState(() => item.kategoriId = v),
-              validator: (v) => v == null ? 'Pilih kategori' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: item.hargaC,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              textInputAction: TextInputAction.done,
-              decoration: _dekor('Harga (Rp)'),
-              onChanged: (_) => setState(() {}),
-              validator: (v) {
-                final s = v?.trim() ?? '';
-                if (s.isEmpty) return 'Harga wajib diisi';
-                final n = int.tryParse(s);
-                if (n == null || n <= 0) return 'Harga harus lebih dari 0';
-                if (n > _maksHarga) return 'Harga maksimal ${Format.rupiah(_maksHarga)}';
-                return null;
-              },
-            ),
-          ],
-        ),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: cs.primaryContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text('Item ${index + 1}', style: TextStyle(fontWeight: FontWeight.bold, color: cs.onPrimaryContainer, fontSize: 12)),
+              ),
+              const Spacer(),
+              if (_items.length > 1)
+                IconButton(
+                  tooltip: 'Hapus item',
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(Icons.delete_outline_rounded, color: cs.error),
+                  onPressed: () => _hapusItem(index),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: item.namaC,
+            textInputAction: TextInputAction.next,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: _dekor('Nama Barang', prefixIcon: Icons.shopping_bag_outlined),
+            validator: (v) {
+              final s = v?.trim() ?? '';
+              if (s.isEmpty) return 'Nama barang wajib diisi';
+              if (s.length > 40) return 'Maksimal 40 karakter';
+              return null;
+            },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: kategoriValid,
+            isExpanded: true,
+            decoration: _dekor('Kategori', prefixIcon: Icons.category_outlined),
+            items: [
+              for (final k in kategori.items)
+                DropdownMenuItem(value: k.id, child: Text(k.nama, overflow: TextOverflow.ellipsis)),
+            ],
+            onChanged: (v) => setState(() => item.kategoriId = v),
+            validator: (v) => v == null ? 'Pilih kategori' : null,
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: item.hargaC,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.done,
+            decoration: _dekor('Harga (Rp)', prefixIcon: Icons.payments_outlined),
+            onChanged: (_) => setState(() {}),
+            validator: (v) {
+              final s = v?.trim() ?? '';
+              if (s.isEmpty) return 'Harga wajib diisi';
+              final n = int.tryParse(s);
+              if (n == null || n <= 0) return 'Harus lebih dari 0';
+              if (n > _maksHarga) return 'Harga maksimal ${Format.rupiah(_maksHarga)}';
+              return null;
+            },
+          ),
+        ],
       ),
     );
   }
