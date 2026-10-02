@@ -1,5 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/kategori_provider.dart';
+import '../providers/transaksi_provider.dart';
+import '../utils/format.dart';
+import '../utils/helpers.dart';
+import '../utils/ringkasan.dart';
+import '../widgets/state_views.dart';
+import '../widgets/transaksi_card.dart';
 import 'monthly_wrapped_screen.dart';
+import 'resi_detail_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final VoidCallback onViewAllPressed;
@@ -9,90 +19,131 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+    final trx = context.watch<TransaksiProvider>();
+    final kategori = context.watch<KategoriProvider>();
+
+    if (trx.status == LoadStatus.initial || trx.status == LoadStatus.loading) {
+      return const LoadingView(pesan: 'Memuat ringkasan...');
+    }
+    if (trx.status == LoadStatus.error) {
+      return ErrorView(
+        pesan: trx.errorMessage ?? 'Terjadi kesalahan.',
+        onRetry: trx.muat,
+      );
+    }
+    if (trx.isEmpty) {
+      return const EmptyView(
+        icon: Icons.receipt_long_rounded,
+        judul: 'Belum ada transaksi',
+        pesan: 'Tekan tombol scan di tengah untuk mencatat pengeluaran pertama.',
+      );
+    }
+
+    final bulan = Ringkasan.bulanTerbaru(trx.items)!;
+    final dataBulan = Ringkasan.pada(trx.items, bulan);
+    final total = Ringkasan.total(dataBulan);
+    final perKategori = Ringkasan.totalPerKategori(dataBulan).take(3).toList();
+    final terbaru = trx.items.take(3).toList();
+
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
-                
-                // Kartu Saldo / Total Pengeluaran Utama
-                _buildBalanceCard(theme),
+                _buildBalanceCard(theme, bulan, total, dataBulan.length),
                 const SizedBox(height: 24),
-                
-                _buildTopCategories(theme),
+                _buildTopCategories(theme, kategori, perKategori, total),
                 const SizedBox(height: 24),
-                
                 _buildMonthlyWrappedBanner(context, theme),
                 const SizedBox(height: 32),
-                
                 _buildRecentReceiptsHeader(theme),
                 const SizedBox(height: 16),
               ],
             ),
           ),
         ),
-        
         SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          sliver: _buildReceiptList(theme),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final t = terbaru[index];
+                return TransaksiCard(
+                  transaksi: t,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => ResiDetailScreen(transaksiId: t.id)),
+                  ),
+                );
+              },
+              childCount: terbaru.length,
+            ),
+          ),
         ),
-        const SliverToBoxAdapter(child: SizedBox(height: 40)), 
+        const SliverToBoxAdapter(child: SizedBox(height: 40)),
       ],
     );
   }
 
-  Widget _buildBalanceCard(ThemeData theme) {
+  Widget _buildBalanceCard(ThemeData theme, DateTime bulan, int total, int jumlah) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary,
-            theme.colorScheme.primary.withBlue(180),
-          ],
+          colors: [theme.colorScheme.primary, theme.colorScheme.primary.withBlue(180)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: theme.colorScheme.primary.withOpacity(0.2),
+            color: theme.colorScheme.primary.withValues(alpha: 0.2),
             blurRadius: 15,
             offset: const Offset(0, 8),
-          )
+          ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Total Pengeluaran Bulan Ini',
+            'Total Pengeluaran ${Format.bulanTahun(bulan)}',
             style: theme.textTheme.titleSmall?.copyWith(
               color: Colors.white70,
               fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            'Rp 3.150.000',
-            style: theme.textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              Format.rupiah(total),
+              style: theme.textTheme.headlineMedium?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
             ),
           ),
+          const SizedBox(height: 8),
+          Text('$jumlah transaksi', style: const TextStyle(color: Colors.white70, fontSize: 12)),
         ],
       ),
     );
   }
 
-  Widget _buildTopCategories(ThemeData theme) {
+  Widget _buildTopCategories(
+    ThemeData theme,
+    KategoriProvider kategori,
+    List<MapEntry<String, int>> data,
+    int total,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -103,24 +154,37 @@ class HomeScreen extends StatelessWidget {
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _buildCategoryChip(Icons.fastfood_rounded, 'Makanan', '45%', Colors.orange, theme)),
-            const SizedBox(width: 12),
-            Expanded(child: _buildCategoryChip(Icons.directions_car_rounded, 'Transport', '30%', Colors.blue, theme)),
-            const SizedBox(width: 12),
-            Expanded(child: _buildCategoryChip(Icons.shopping_bag_rounded, 'Belanja', '15%', Colors.purple, theme)),
+            for (var i = 0; i < data.length; i++) ...[
+              if (i > 0) const SizedBox(width: 12),
+              Expanded(
+                child: _buildCategoryChip(
+                  Format.ikonKategori(data[i].key),
+                  kategori.namaDari(data[i].key),
+                  total == 0 ? '0%' : '${(data[i].value * 100 / total).round()}%',
+                  Color(kategori.byId(data[i].key)?.warna ?? 0xFF757575),
+                  theme,
+                ),
+              ),
+            ],
           ],
         ),
       ],
     );
   }
 
-  Widget _buildCategoryChip(IconData icon, String label, String percentage, Color color, ThemeData theme) {
+  Widget _buildCategoryChip(
+    IconData icon,
+    String label,
+    String percentage,
+    Color color,
+    ThemeData theme,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -132,13 +196,17 @@ class HomeScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  label, 
-                  style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold),
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.bold,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  percentage, 
+                  percentage,
                   style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
                 ),
               ],
@@ -151,7 +219,7 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildMonthlyWrappedBanner(BuildContext context, ThemeData theme) {
     return Material(
-      color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
       borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -204,87 +272,16 @@ class HomeScreen extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('Riwayat Struk', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        Text(
+          'Riwayat Struk',
+          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        ),
         TextButton(
           onPressed: onViewAllPressed,
           style: TextButton.styleFrom(foregroundColor: theme.colorScheme.primary),
           child: const Text('Lihat Semua'),
         ),
       ],
-    );
-  }
-
-  Widget _buildReceiptList(ThemeData theme) {
-    return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          final isSupermarket = index == 0;
-          
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  height: 48,
-                  width: 48,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    isSupermarket ? Icons.receipt_long_rounded : Icons.share_rounded, 
-                    color: isSupermarket ? Colors.orange : Colors.blue,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isSupermarket ? 'Struk Supermarket' : 'Resi M-Banking / E-Wallet',
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        isSupermarket ? '12 Item • Hari ini, 19:30' : '1 Item • Kemarin, 14:15',
-                        style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12), 
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      isSupermarket ? '-Rp 345.000' : '-Rp 150.000',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.redAccent),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Berhasil', 
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: Colors.green),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
-        childCount: 3, 
-      ),
     );
   }
 }

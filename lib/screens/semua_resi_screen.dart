@@ -1,4 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../models/transaksi.dart';
+import '../providers/transaksi_provider.dart';
+import '../utils/format.dart';
+import '../utils/helpers.dart';
+import '../widgets/state_views.dart';
+import '../widgets/transaksi_card.dart';
+import 'resi_detail_screen.dart';
 
 class SemuaResiScreen extends StatefulWidget {
   const SemuaResiScreen({super.key});
@@ -8,256 +17,188 @@ class SemuaResiScreen extends StatefulWidget {
 }
 
 class _SemuaResiScreenState extends State<SemuaResiScreen> {
-  // 1. Kita buat master data mentah (Dummy Data)
-  final List<Map<String, dynamic>> _allReceipts = [
-    {
-      'title': 'Struk Supermarket',
-      'subtitle': '12 Item • Hari ini, 19:30',
-      'amount': '-Rp 345.000',
-      'isSupermarket': true,
-    },
-    {
-      'title': 'Resi M-Banking / E-Wallet',
-      'subtitle': '1 Item • Kemarin, 14:15',
-      'amount': '-Rp 150.000',
-      'isSupermarket': false,
-    },
-    {
-      'title': 'Struk Minimarket',
-      'subtitle': '3 Item • 27 Sep, 08:00',
-      'amount': '-Rp 45.000',
-      'isSupermarket': true,
-    },
-    {
-      'title': 'Top Up E-Wallet',
-      'subtitle': '1 Item • 25 Sep, 10:20',
-      'amount': '-Rp 200.000',
-      'isSupermarket': false,
-    },
-    {
-      'title': 'Struk Toko Buku',
-      'subtitle': '2 Item • 23 Sep, 16:45',
-      'amount': '-Rp 120.000',
-      'isSupermarket': true,
-    },
-  ];
-
-  // 2. Variabel ini yang akan ditampilkan di layar (hasil filter)
-  List<Map<String, dynamic>> _filteredReceipts = [];
+  final _searchController = TextEditingController();
+  String _query = '';
+  SumberResi? _sumber; // null = semua sumber
 
   @override
-  void initState() {
-    super.initState();
-    // Saat layar pertama dibuka, tampilkan semua resi
-    _filteredReceipts = _allReceipts;
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
-  // 3. Fungsi ini akan dipanggil setiap kali kita mengetik sesuatu
-  void _runFilter(String enteredKeyword) {
-    List<Map<String, dynamic>> results = [];
-    if (enteredKeyword.isEmpty) {
-      results = _allReceipts; // Kalau kosong, tampilkan semua
-    } else {
-      // Filter berdasarkan judul (title) atau nominal (amount)
-      results = _allReceipts.where((receipt) {
-        final titleMatch = receipt['title'].toLowerCase().contains(enteredKeyword.toLowerCase());
-        final amountMatch = receipt['amount'].toLowerCase().contains(enteredKeyword.toLowerCase());
-        return titleMatch || amountMatch;
-      }).toList();
-    }
+  /// Filter gabungan: sumber + kata kunci (toko, nama item, atau nominal).
+  List<Transaksi> _filter(List<Transaksi> data) {
+    final q = _query.trim().toLowerCase();
+    final angka = q.replaceAll(RegExp(r'[^0-9]'), '');
+    return data.where((t) {
+      if (_sumber != null && t.sumber != _sumber) return false;
+      if (q.isEmpty) return true;
+      return t.toko.toLowerCase().contains(q) ||
+          t.items.any((i) => i.nama.toLowerCase().contains(q)) ||
+          (angka.isNotEmpty && t.total.toString().contains(angka));
+    }).toList();
+  }
 
-    // Refresh UI dengan data baru
+  void _resetFilter() {
+    _searchController.clear();
     setState(() {
-      _filteredReceipts = results;
+      _query = '';
+      _sumber = null;
     });
+  }
+
+  void _bukaDetail(String id) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ResiDetailScreen(transaksiId: id)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final cs = theme.colorScheme;
+    final trx = context.watch<TransaksiProvider>();
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: cs.surface,
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20.0, 16.0, 20.0, 8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Semua Resi & Transaksi',
-                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Riwayat otomatis dari scan kamera & share intent',
-                      style: TextStyle(color: colorScheme.onSurface.withOpacity(0.6), fontSize: 12),
-                    ),
-                    const SizedBox(height: 20),
-                    
-                    _buildSearchBar(theme),
-                    
-                    const SizedBox(height: 8),
-                  ],
-                ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Semua Resi & Transaksi',
+                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Riwayat otomatis dari scan kamera & share intent',
+                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSearchBar(theme),
+                  const SizedBox(height: 12),
+                  _buildSumberChips(),
+                ],
               ),
             ),
-            
-            // 4. Jika hasil pencarian kosong, tampilkan pesan. Jika ada, tampilkan list.
-            _filteredReceipts.isEmpty
-                ? SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 40.0),
-                      child: Center(
-                        child: Text(
-                          'Pencarian tidak ditemukan 🥲',
-                          style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-                        ),
-                      ),
-                    ),
-                  )
-                : SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    sliver: _buildEnhancedReceiptList(theme),
-                  ),
-            const SliverToBoxAdapter(child: SizedBox(height: 100)), 
+            Expanded(child: _buildBody(trx, theme)),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildBody(TransaksiProvider trx, ThemeData theme) {
+    switch (trx.status) {
+      case LoadStatus.initial:
+      case LoadStatus.loading:
+        return const LoadingView(pesan: 'Memuat resi...');
+      case LoadStatus.error:
+        return ErrorView(
+          pesan: trx.errorMessage ?? 'Terjadi kesalahan.',
+          onRetry: trx.muat,
+        );
+      case LoadStatus.success:
+        if (trx.isEmpty) {
+          return const EmptyView(
+            icon: Icons.receipt_long_rounded,
+            judul: 'Belum ada resi',
+            pesan: 'Tekan tombol scan di tengah untuk menambahkan resi pertama.',
+          );
+        }
+        final hasil = _filter(trx.items);
+        if (hasil.isEmpty) {
+          return EmptyView(
+            icon: Icons.search_off_rounded,
+            judul: 'Resi tidak ditemukan',
+            pesan: 'Coba kata kunci lain atau hapus filter yang aktif.',
+            labelAksi: 'Reset filter',
+            onAksi: _resetFilter,
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text(
+                'Menampilkan ${hasil.length} dari ${trx.items.length} resi',
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                itemCount: hasil.length,
+                itemBuilder: (context, index) {
+                  final t = hasil[index];
+                  return TransaksiCard(transaksi: t, onTap: () => _bukaDetail(t.id));
+                },
+              ),
+            ),
+          ],
+        );
+    }
+  }
+
   Widget _buildSearchBar(ThemeData theme) {
+    final cs = theme.colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withOpacity(0.3)),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: TextField(
-        style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14),
+        controller: _searchController,
+        style: TextStyle(color: cs.onSurface, fontSize: 14),
+        textInputAction: TextInputAction.search,
         decoration: InputDecoration(
-          hintText: 'Cari nama toko atau nominal...',
-          hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 14),
+          hintText: 'Cari toko, nama barang, atau nominal...',
+          hintStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 14),
           border: InputBorder.none,
-          icon: Icon(
-            Icons.search_rounded, 
-            color: theme.colorScheme.onSurfaceVariant,
-            size: 22,
-          ),
+          icon: Icon(Icons.search_rounded, color: cs.onSurfaceVariant, size: 22),
+          suffixIcon: _query.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  tooltip: 'Hapus pencarian',
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _query = '');
+                  },
+                ),
         ),
-        // Panggil fungsi filter saat ada ketikan baru
-        onChanged: (value) => _runFilter(value),
+        onChanged: (value) => setState(() => _query = value),
       ),
     );
   }
 
-  Widget _buildEnhancedReceiptList(ThemeData theme) {
-    return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          // Ambil data dari _filteredReceipts, bukan dari index statis lagi
-          final item = _filteredReceipts[index];
-          
-          bool isSupermarket = item['isSupermarket'];
-          String title = item['title'];
-          String subtitle = item['subtitle'];
-          String amount = item['amount'];
-          IconData iconData = isSupermarket ? Icons.receipt_long_rounded : Icons.share_rounded;
-          Color accentColor = isSupermarket ? Colors.orange : Colors.blue;
+  Widget _buildSumberChips() {
+    Widget chip(String label, SumberResi? nilai) => Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: ChoiceChip(
+            label: Text(label),
+            selected: _sumber == nilai,
+            onSelected: (_) => setState(() => _sumber = nilai),
+          ),
+        );
 
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16.0),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceVariant.withOpacity(0.25),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: theme.colorScheme.outlineVariant.withOpacity(0.4),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    height: 52,
-                    width: 52,
-                    decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(
-                      iconData,
-                      color: accentColor,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
-                            fontSize: 12,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        amount,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: Colors.redAccent,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          'Berhasil',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-        // Jumlah item sekarang dinamis sesuai hasil pencarian
-        childCount: _filteredReceipts.length,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          chip('Semua', null),
+          for (final s in SumberResi.values) chip(Format.labelSumber(s), s),
+        ],
       ),
     );
   }

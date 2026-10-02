@@ -1,12 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'providers/theme_provider.dart'; // Sesuaikan path jika folder providers berbeda
-import 'screens/splash_screen.dart'; 
+
+import 'providers/kategori_provider.dart';
+import 'providers/theme_provider.dart';
+import 'providers/transaksi_provider.dart';
+import 'repositories/kategori_repository.dart';
+import 'repositories/transaksi_repository.dart';
+import 'screens/splash_screen.dart';
 
 void main() {
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(
+          create: (_) => KategoriProvider(KategoriRepository())..muat(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => TransaksiProvider(TransaksiRepository())..muat(),
+        ),
+      ],
       child: const BonKuApp(),
     ),
   );
@@ -17,14 +30,11 @@ class BonKuApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Mendengarkan perubahan tema dari ThemeProvider secara dinamis
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp(
       title: 'BonKu',
       debugShowCheckedModeBanner: false,
-      
-      // Tema Terang (Light Theme)
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.teal,
@@ -32,8 +42,6 @@ class BonKuApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      
-      // Tema Gelap (Dark Theme)
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.teal,
@@ -41,10 +49,7 @@ class BonKuApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      
-      // Menggunakan themeMode dari provider (bukan lagi ThemeMode.system statis)
-      themeMode: themeProvider.themeMode, 
-      
+      themeMode: themeProvider.themeMode,
       home: const SplashScreen(),
     );
   }
