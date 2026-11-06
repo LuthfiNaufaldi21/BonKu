@@ -61,90 +61,101 @@ class _SemuaResiScreenState extends State<SemuaResiScreen> {
     final cs = theme.colorScheme;
     final trx = context.watch<TransaksiProvider>();
 
+    // Seluruh halaman (judul, pencarian, filter, daftar) satu area gulir,
+    // sehingga tidak overflow di layar pendek / landscape.
     return Scaffold(
       backgroundColor: cs.surface,
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Semua Resi & Transaksi',
-                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Riwayat otomatis dari scan kamera & share intent',
-                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSearchBar(theme),
-                  const SizedBox(height: 12),
-                  _buildSumberChips(),
-                ],
+        child: CustomScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Semua Resi & Transaksi',
+                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Riwayat otomatis dari scan kamera & share intent',
+                      style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildSearchBar(theme),
+                    const SizedBox(height: 12),
+                    _buildSumberChips(),
+                  ],
+                ),
               ),
             ),
-            Expanded(child: _buildBody(trx, theme)),
+            ..._buildIsi(trx, theme),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBody(TransaksiProvider trx, ThemeData theme) {
+  List<Widget> _buildIsi(TransaksiProvider trx, ThemeData theme) {
+    Widget isi(Widget child) => SliverFillRemaining(hasScrollBody: false, child: child);
+
     switch (trx.status) {
       case LoadStatus.initial:
       case LoadStatus.loading:
-        return const LoadingView(pesan: 'Memuat resi...');
+        return [isi(const LoadingView(pesan: 'Memuat resi...'))];
       case LoadStatus.error:
-        return ErrorView(
-          pesan: trx.errorMessage ?? 'Terjadi kesalahan.',
-          onRetry: trx.muat,
-        );
+        return [
+          isi(ErrorView(
+            pesan: trx.errorMessage ?? 'Terjadi kesalahan.',
+            onRetry: trx.muat,
+          )),
+        ];
       case LoadStatus.success:
         if (trx.isEmpty) {
-          return const EmptyView(
-            icon: Icons.receipt_long_rounded,
-            judul: 'Belum ada resi',
-            pesan: 'Tekan tombol scan di tengah untuk menambahkan resi pertama.',
-          );
+          return [
+            isi(const EmptyView(
+              icon: Icons.receipt_long_rounded,
+              judul: 'Belum ada resi',
+              pesan: 'Tekan tombol scan di tengah untuk menambahkan resi pertama.',
+            )),
+          ];
         }
         final hasil = _filter(trx.items);
         if (hasil.isEmpty) {
-          return EmptyView(
-            icon: Icons.search_off_rounded,
-            judul: 'Resi tidak ditemukan',
-            pesan: 'Coba kata kunci lain atau hapus filter yang aktif.',
-            labelAksi: 'Reset filter',
-            onAksi: _resetFilter,
-          );
+          return [
+            isi(EmptyView(
+              icon: Icons.search_off_rounded,
+              judul: 'Resi tidak ditemukan',
+              pesan: 'Coba kata kunci lain atau hapus filter yang aktif.',
+              labelAksi: 'Reset filter',
+              onAksi: _resetFilter,
+            )),
+          ];
         }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
+        return [
+          SliverToBoxAdapter(
+            child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Text(
                 'Menampilkan ${hasil.length} dari ${trx.items.length} resi',
                 style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
               ),
             ),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                itemCount: hasil.length,
-                itemBuilder: (context, index) {
-                  final t = hasil[index];
-                  return TransaksiCard(transaksi: t, onTap: () => _bukaDetail(t.id));
-                },
-              ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            sliver: SliverList.builder(
+              itemCount: hasil.length,
+              itemBuilder: (context, index) {
+                final t = hasil[index];
+                return TransaksiCard(transaksi: t, onTap: () => _bukaDetail(t.id));
+              },
             ),
-          ],
-        );
+          ),
+        ];
     }
   }
 

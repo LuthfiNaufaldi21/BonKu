@@ -52,6 +52,22 @@ class BonKuApp extends StatelessWidget {
         useMaterial3: true,
       ),
       themeMode: themeProvider.themeMode,
+      // Tablet/desktop/web (sisi terpendek >= 600 dp): isi dibatasi 720 dp dan
+      // dipusatkan. HP, termasuk landscape, tetap memakai layar penuh.
+      builder: (context, child) {
+        final isi = child ?? const SizedBox.shrink();
+        if (MediaQuery.sizeOf(context).shortestSide < 600) return isi;
+        return ColoredBox(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: isi,
+            ),
+          ),
+        );
+      },
       initialRoute: AppRoutes.splash,
       onGenerateRoute: AppRoutes.generate,
       onGenerateInitialRoutes: (nama) => [

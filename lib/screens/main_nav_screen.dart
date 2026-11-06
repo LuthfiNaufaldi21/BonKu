@@ -51,7 +51,10 @@ class _MainNavScreenState extends State<MainNavScreen> {
       ),
       builder: (BuildContext context) {
         return SafeArea(
-          child: Wrap(
+          child: SingleChildScrollView(
+            child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
@@ -81,6 +84,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
               const SizedBox(height: 10),
             ],
           ),
+          ),
         );
       },
     );
@@ -90,14 +94,15 @@ class _MainNavScreenState extends State<MainNavScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final pref = context.watch<PreferensiProvider>(); // Tambahkan ini
+    final pref = context.watch<PreferensiProvider>();
+    final pendek = MediaQuery.sizeOf(context).height < 500; // mis. HP landscape
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
         backgroundColor: colorScheme.surface,
         elevation: 0,
-        toolbarHeight: 75,
+        toolbarHeight: pendek ? 56 : 75,
         title: Row(
           children: [
             CircleAvatar(
@@ -162,7 +167,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
       ),
       bottomNavigationBar: SafeArea(
         child: Container(
-          height: 70,
+          height: pendek ? 56 : 70,
           decoration: BoxDecoration(
             color: colorScheme.surface,
             border: Border(
@@ -180,8 +185,8 @@ class _MainNavScreenState extends State<MainNavScreen> {
                     onTap: _pilihSumber,
                     borderRadius: BorderRadius.circular(28),
                     child: Container(
-                      height: 56,
-                      width: 56,
+                      height: pendek ? 44 : 56,
+                      width: pendek ? 44 : 56,
                       decoration: BoxDecoration(
                         color: colorScheme.primary,
                         shape: BoxShape.circle,
@@ -196,7 +201,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
                       child: Icon(
                         Icons.qr_code_scanner_rounded,
                         color: colorScheme.onPrimary,
-                        size: 28,
+                        size: pendek ? 24 : 28,
                       ),
                     ),
                   ),

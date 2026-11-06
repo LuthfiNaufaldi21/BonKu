@@ -190,6 +190,9 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     final cs = Theme.of(context).colorScheme;
     final kategori = context.watch<KategoriProvider>();
     final menyimpan = context.watch<TransaksiProvider>().isSubmitting;
+    // Di layar pendek (mis. landscape) bar total/simpan ikut tergulir agar
+    // area isian tidak terhimpit.
+    final pendek = MediaQuery.sizeOf(context).height < 500;
 
     final judul = _edit
         ? 'Edit Resi'
@@ -204,7 +207,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     } else if (kategori.status != LoadStatus.success) {
       body = const LoadingView(pesan: 'Memuat kategori...');
     } else {
-      body = _buildForm(kategori);
+      body = _buildForm(kategori, barDiDalam: pendek, menyimpan: menyimpan);
     }
 
     return Scaffold(
@@ -213,7 +216,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
         backgroundColor: cs.primaryContainer,
       ),
       body: body,
-      bottomNavigationBar: kategori.status == LoadStatus.success
+      bottomNavigationBar: (kategori.status == LoadStatus.success && !pendek)
           ? _buildBottomBar(cs, menyimpan)
           : null,
     );
@@ -233,7 +236,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     );
   }
 
-  Widget _buildForm(KategoriProvider kategori) {
+  Widget _buildForm(KategoriProvider kategori, {bool barDiDalam = false, bool menyimpan = false}) {
     final cs = Theme.of(context).colorScheme;
 
     return Form(
@@ -368,6 +371,10 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
           ),
           const SizedBox(height: 8),
           for (var i = 0; i < _items.length; i++) _buildItemCard(i, kategori),
+          if (barDiDalam) ...[
+            const SizedBox(height: 8),
+            _buildBottomBar(cs, menyimpan),
+          ],
         ],
       ),
     );
@@ -446,6 +453,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
           TextFormField(
             controller: item.hargaC,
             keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             textInputAction: TextInputAction.done,
             decoration: _dekor('Harga (Rp)', prefixIcon: Icons.payments_outlined),
             onChanged: (_) => setState(() {}),

@@ -735,11 +735,13 @@ class _Frame extends StatelessWidget {
           Positioned.fill(
             child: Padding(
               padding: EdgeInsets.fromLTRB(28, atas + 64, 28, bawah + 32),
+              // Konten mengecil otomatis jika layar pendek (landscape), tanpa overflow.
               child: LayoutBuilder(
-                builder: (context, c) => SingleChildScrollView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: c.maxHeight),
+                builder: (context, c) => FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.center,
+                  child: SizedBox(
+                    width: c.maxWidth,
                     child: Align(alignment: Alignment.centerLeft, child: child),
                   ),
                 ),
