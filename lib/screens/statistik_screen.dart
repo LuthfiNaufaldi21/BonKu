@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/transaksi.dart';
 import '../providers/kategori_provider.dart';
 import '../providers/transaksi_provider.dart';
 import '../utils/format.dart';
 import '../utils/helpers.dart';
 import '../utils/ringkasan.dart';
+import '../widgets/grafik_bulanan.dart';
 import '../widgets/state_views.dart';
 import '../widgets/transaksi_card.dart';
 import 'monthly_wrapped_screen.dart';
@@ -19,7 +21,23 @@ class StatistikScreen extends StatefulWidget {
 }
 
 class _StatistikScreenState extends State<StatistikScreen> {
-  DateTime? _dipilih;
+  DateTime? _dipilih; // bulan yang sedang dilihat; null = bulan terbaru
+  bool _garis = false; // false = batang, true = garis
+  int? _rentang = 6; // jumlah bulan terakhir; null = semua
+
+  /// Deret bulan tanpa celah, dari bulan transaksi pertama sampai terakhir.
+  /// Bulan tanpa transaksi tetap muncul (bernilai 0).
+  List<DateTime> _deretBulan(List<Transaksi> semua) {
+    final ada = Ringkasan.daftarBulan(semua);
+    if (ada.isEmpty) return [];
+    final hasil = <DateTime>[];
+    var b = ada.first;
+    while (!b.isAfter(ada.last)) {
+      hasil.add(b);
+      b = DateTime(b.year, b.month + 1);
+    }
+    return hasil;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,9 +85,15 @@ class _StatistikScreenState extends State<StatistikScreen> {
 
   Widget _buildIsi(ThemeData theme, TransaksiProvider trx, KategoriProvider kategori) {
     final semua = trx.items;
-    final bulanList = Ringkasan.daftarBulan(semua);
-    final tampil = bulanList.length > 6 ? bulanList.sublist(bulanList.length - 6) : bulanList;
-    final bulan = (_dipilih != null && bulanList.contains(_dipilih)) ? _dipilih! : bulanList.last;
+    final deret = _deretBulan(semua);
+    final jendela = (_rentang == null || deret.length <= _rentang!)
+        ? deret
+        : deret.sublist(deret.length - _rentang!);
+    final bulan = (_dipilih != null && jendela.contains(_dipilih)) ? _dipilih! : jendela.last;
+
+    final titik = [
+      for (final b in jendela) TitikBulan(b, Ringkasan.total(Ringkasan.pada(semua, b))),
+    ];
 
     final dataBulan = Ringkasan.pada(semua, bulan);
     final total = Ringkasan.total(dataBulan);
@@ -78,7 +102,6 @@ class _StatistikScreenState extends State<StatistikScreen> {
     );
     final perKategori = Ringkasan.totalPerKategori(dataBulan);
     final terbesar = [...dataBulan]..sort((a, b) => b.total.compareTo(a.total));
-    final totalPerBulan = [for (final b in tampil) Ringkasan.total(Ringkasan.pada(semua, b))];
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
@@ -89,37 +112,112 @@ class _StatistikScreenState extends State<StatistikScreen> {
           'Grafik Bulanan',
           style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 12),
+        _buildKontrolGrafik(theme),
+        const SizedBox(height: 8),
         Text(
-          'Ketuk batang untuk melihat bulan lain',
+          '${jendela.length} bulan • ${_ringkasBulan(jendela.first)} – ${_ringkasBulan(jendela.last)}'
+          '${jendela.length > 6 ? ' • geser untuk melihat bulan lain' : ''}',
           style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
         ),
         const SizedBox(height: 12),
-        _buildChart(theme, tampil, totalPerBulan, bulan),
+        GrafikBulanan(
+          data: titik,
+          dipilih: bulan,
+          garis: _garis,
+          onPilih: (b) => setState(() => _dipilih = b),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _garis ? 'Ketuk titik untuk melihat bulan lain' : 'Ketuk batang untuk melihat bulan lain',
+          style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
+        ),
         const SizedBox(height: 16),
         _buildTotalBulan(theme, bulan, total, sebelumnya, dataBulan.length),
         const SizedBox(height: 24),
-        Text(
-          'Rincian Kategori',
-          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        if (dataBulan.isEmpty)
+          _buildBulanKosong(theme, bulan)
+        else ...[
+          Text(
+            'Rincian Kategori',
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          for (final e in perKategori) _buildKategoriRow(theme, kategori, e.key, e.value, total),
+          const SizedBox(height: 12),
+          Text(
+            'Transaksi Terbesar',
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          for (final t in terbesar.take(3))
+            TransaksiCard(
+              transaksi: t,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ResiDetailScreen(transaksiId: t.id)),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+
+  String _ringkasBulan(DateTime b) => '${Format.bulanTahun(b).substring(0, 3)} ${b.year}';
+
+  Widget _buildKontrolGrafik(ThemeData theme) {
+    const pilihanRentang = <int?>[3, 6, 12, null];
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        SegmentedButton<bool>(
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(value: false, icon: Icon(Icons.bar_chart_rounded), label: Text('Batang')),
+            ButtonSegment(value: true, icon: Icon(Icons.show_chart_rounded), label: Text('Garis')),
+          ],
+          selected: {_garis},
+          onSelectionChanged: (s) => setState(() => _garis = s.first),
         ),
-        const SizedBox(height: 12),
-        for (final e in perKategori) _buildKategoriRow(theme, kategori, e.key, e.value, total),
-        const SizedBox(height: 12),
-        Text(
-          'Transaksi Terbesar',
-          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final r in pilihanRentang)
+              ChoiceChip(
+                label: Text(r == null ? 'Semua' : '$r bln'),
+                selected: _rentang == r,
+                onSelected: (_) => setState(() => _rentang = r),
+              ),
+          ],
         ),
-        const SizedBox(height: 12),
-        for (final t in terbesar.take(3))
-          TransaksiCard(
-            transaksi: t,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => ResiDetailScreen(transaksiId: t.id)),
+      ],
+    );
+  }
+
+  Widget _buildBulanKosong(ThemeData theme, DateTime bulan) {
+    final cs = theme.colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.event_busy_rounded, color: cs.onSurfaceVariant),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Tidak ada transaksi pada ${Format.bulanTahun(bulan)}.',
+              style: TextStyle(color: cs.onSurfaceVariant),
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -179,71 +277,6 @@ class _StatistikScreenState extends State<StatistikScreen> {
             ),
             child: const Text('Lihat Analisis', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChart(ThemeData theme, List<DateTime> bulanList, List<int> totals, DateTime dipilih) {
-    final cs = theme.colorScheme;
-    final maks = totals.fold<int>(0, (m, v) => v > m ? v : m);
-
-    return Container(
-      height: 200,
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          for (var i = 0; i < bulanList.length; i++)
-            Expanded(
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => setState(() => _dipilih = bulanList[i]),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      Format.ringkas(totals[i]),
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: bulanList[i] == dipilih ? FontWeight.bold : FontWeight.normal,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0, end: maks == 0 ? 0 : totals[i] / maks),
-                      duration: const Duration(milliseconds: 700),
-                      curve: Curves.easeOutCubic,
-                      builder: (context, v, _) => Container(
-                        width: 28,
-                        height: 4 + 86 * v,
-                        decoration: BoxDecoration(
-                          color: bulanList[i] == dipilih
-                              ? cs.primary
-                              : cs.primary.withValues(alpha: 0.35),
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      Format.bulanTahun(bulanList[i]).substring(0, 3),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: bulanList[i] == dipilih ? FontWeight.bold : FontWeight.normal,
-                        color: bulanList[i] == dipilih ? cs.primary : cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
         ],
       ),
     );

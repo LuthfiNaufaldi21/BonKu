@@ -12,12 +12,10 @@ import '../utils/helpers.dart';
 import '../widgets/state_views.dart';
 
 class _ItemForm {
-  _ItemForm({this.id, String nama = '', String? kategoriId, int? harga})
+  _ItemForm({this.id, String nama = '', this.kategoriId, int? harga})
       : namaC = TextEditingController(text: nama),
         hargaC = TextEditingController(text: harga?.toString() ?? ''),
-        key = UniqueKey() {
-    this.kategoriId = kategoriId;
-  }
+        key = UniqueKey();
 
   final String? id; 
   final Key key;
