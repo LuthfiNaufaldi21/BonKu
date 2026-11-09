@@ -35,7 +35,7 @@ class HomeScreen extends StatelessWidget {
       return const EmptyView(
         icon: Icons.receipt_long_rounded,
         judul: 'Belum ada transaksi',
-        pesan: 'Tekan tombol scan di tengah untuk mencatat pengeluaran pertama.',
+        pesan: 'Tekan tombol + di tengah untuk mencatat pengeluaran pertama.',
       );
     }
 

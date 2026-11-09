@@ -79,7 +79,7 @@ class PengaturanScreen extends StatelessWidget {
               const SizedBox(height: 8),
               faq(
                 'Bagaimana cara mencatat resi?',
-                'Tekan tombol scan di tengah, lalu pilih foto struk, resi digital, atau input manual. '
+                'Tekan tombol + di tengah, lalu pilih scan struk, galeri/resi digital, atau input manual. '
                     'Periksa hasilnya, lalu tekan Simpan.',
               ),
               faq(

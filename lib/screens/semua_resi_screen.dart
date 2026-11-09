@@ -119,7 +119,7 @@ class _SemuaResiScreenState extends State<SemuaResiScreen> {
             isi(const EmptyView(
               icon: Icons.receipt_long_rounded,
               judul: 'Belum ada resi',
-              pesan: 'Tekan tombol scan di tengah untuk menambahkan resi pertama.',
+              pesan: 'Tekan tombol + di tengah untuk menambahkan resi pertama.',
             )),
           ];
         }

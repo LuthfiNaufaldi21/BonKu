@@ -329,17 +329,18 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          DropdownButtonFormField<SumberResi>(
-            initialValue: _sumber,
-            isExpanded: true,
-            decoration: _dekor('Sumber Resi'),
-            items: [
-              for (final s in SumberResi.values)
-                DropdownMenuItem(value: s, child: Text(Format.labelSumber(s))),
-            ],
-            onChanged: (v) {
-              if (v != null) setState(() => _sumber = v);
-            },
+          // Sumber ditentukan otomatis dari cara resi dicatat, bukan pilihan pengguna.
+          InputDecorator(
+            decoration: _dekor('Sumber Resi').copyWith(
+              helperText: 'Ditentukan otomatis dari cara resi dicatat',
+            ),
+            child: Row(
+              children: [
+                Icon(Format.ikonSumber(_sumber), size: 20, color: Format.warnaSumber(_sumber)),
+                const SizedBox(width: 10),
+                Text(Format.labelSumber(_sumber)),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           TextFormField(
