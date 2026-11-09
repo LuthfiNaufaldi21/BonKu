@@ -5,8 +5,8 @@ import 'providers/kategori_provider.dart';
 import 'providers/preferensi_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/transaksi_provider.dart';
-import 'repositories/kategori_repository.dart';
-import 'repositories/transaksi_repository.dart';
+import 'repositories/in_memory_kategori_repository.dart';
+import 'repositories/in_memory_transaksi_repository.dart';
 import 'routes.dart';
 
 void main() {
@@ -16,10 +16,10 @@ void main() {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => PreferensiProvider()),
         ChangeNotifierProvider(
-          create: (_) => KategoriProvider(KategoriRepository())..muat(),
+          create: (_) => KategoriProvider(InMemoryKategoriRepository())..muat(),
         ),
         ChangeNotifierProvider(
-          create: (_) => TransaksiProvider(TransaksiRepository())..muat(),
+          create: (_) => TransaksiProvider(InMemoryTransaksiRepository())..muat(),
         ),
       ],
       child: const BonKuApp(),

@@ -4,6 +4,10 @@ import '../models/transaksi.dart';
 import '../repositories/transaksi_repository.dart';
 import '../utils/helpers.dart';
 
+/// State bersama untuk modul Transaksi. Semua layar membaca data dari sini,
+/// sehingga perubahan di satu layar langsung terlihat di layar lain.
+/// Provider memperbarui daftar lokalnya sendiri setelah repository berhasil,
+/// jadi tidak bergantung pada jenis repository (memori atau Firestore).
 class TransaksiProvider extends ChangeNotifier {
   TransaksiProvider(this._repo);
 
@@ -13,21 +17,21 @@ class TransaksiProvider extends ChangeNotifier {
   LoadStatus _status = LoadStatus.initial;
   String? _errorMessage;
   bool _isSubmitting = false;
-
   bool _simulasiGagal = false;
-
-  bool get simulasiGagal => _simulasiGagal;
-  set simulasiGagal(bool nilai) {
-    if (nilai == _simulasiGagal) return;
-    _simulasiGagal = nilai;
-    notifyListeners();
-  }
 
   List<Transaksi> get items => List.unmodifiable(_items);
   LoadStatus get status => _status;
   String? get errorMessage => _errorMessage;
   bool get isSubmitting => _isSubmitting;
   bool get isEmpty => _status == LoadStatus.success && _items.isEmpty;
+
+  /// Saklar demo: jika true, semua operasi berpura-pura gagal.
+  bool get simulasiGagal => _simulasiGagal;
+  set simulasiGagal(bool nilai) {
+    if (nilai == _simulasiGagal) return;
+    _simulasiGagal = nilai;
+    notifyListeners();
+  }
 
   Transaksi? byId(String id) {
     for (final t in _items) {
@@ -37,12 +41,13 @@ class TransaksiProvider extends ChangeNotifier {
   }
 
   Future<void> muat() async {
-    if (_status == LoadStatus.loading) return; 
+    if (_status == LoadStatus.loading) return; // cegah pemanggilan ganda
     _status = LoadStatus.loading;
     _errorMessage = null;
     notifyListeners();
     try {
-      _items = await _repo.getAll(simulateError: _simulasiGagal);
+      await _cekSimulasi('memuat');
+      _items = _urutkan(await _repo.getAll());
       _status = LoadStatus.success;
     } catch (e) {
       _status = LoadStatus.error;
@@ -51,30 +56,42 @@ class TransaksiProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> tambah(Transaksi t) =>
-      _jalankan(() => _repo.tambah(t, simulateError: _simulasiGagal));
+  /// Mengembalikan true jika berhasil. Jika gagal, lihat [errorMessage].
+  Future<bool> tambah(Transaksi t) => _jalankan('menyimpan', () async {
+        await _repo.tambah(t);
+        _items = _urutkan([..._items, t]);
+      });
 
-  Future<bool> ubah(Transaksi t) =>
-      _jalankan(() => _repo.ubah(t, simulateError: _simulasiGagal));
+  Future<bool> ubah(Transaksi t) => _jalankan('menyimpan', () async {
+        await _repo.ubah(t);
+        _items = _urutkan([for (final e in _items) e.id == t.id ? t : e]);
+      });
 
-  Future<bool> hapus(String id) =>
-      _jalankan(() => _repo.hapus(id, simulateError: _simulasiGagal));
+  Future<bool> hapus(String id) => _jalankan('menghapus', () async {
+        await _repo.hapus(id);
+        _items = _items.where((e) => e.id != id).toList();
+      });
 
-  Future<bool> kosongkan() =>
-      _jalankan(() => _repo.kosongkan(simulateError: _simulasiGagal));
+  /// Fitur demo: kosongkan semua transaksi / pulihkan data awal.
+  Future<bool> kosongkan() => _jalankan('menghapus', () async {
+        await _repo.kosongkan();
+        _items = [];
+      });
 
-  Future<bool> pulihkan() =>
-      _jalankan(() => _repo.pulihkan(simulateError: _simulasiGagal));
+  Future<bool> pulihkan() => _jalankan('memulihkan', () async {
+        await _repo.pulihkan();
+        _items = _urutkan(await _repo.getAll());
+      });
 
-  Future<bool> _jalankan(Future<void> Function() aksi) async {
-    if (_isSubmitting) return false; 
+  Future<bool> _jalankan(String namaAksi, Future<void> Function() aksi) async {
+    if (_isSubmitting) return false; // cegah submit ganda
     _isSubmitting = true;
     _errorMessage = null;
     notifyListeners();
     var berhasil = false;
     try {
+      await _cekSimulasi(namaAksi);
       await aksi();
-      _items = _repo.snapshot;
       berhasil = true;
     } catch (e) {
       _errorMessage = _bersihkan(e);
@@ -83,6 +100,15 @@ class TransaksiProvider extends ChangeNotifier {
     notifyListeners();
     return berhasil;
   }
+
+  Future<void> _cekSimulasi(String namaAksi) async {
+    if (!_simulasiGagal) return;
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    throw Exception('Simulasi gagal $namaAksi data');
+  }
+
+  List<Transaksi> _urutkan(List<Transaksi> data) =>
+      [...data]..sort((a, b) => b.tanggal.compareTo(a.tanggal));
 
   String _bersihkan(Object e) => e.toString().replaceFirst('Exception: ', '');
 }

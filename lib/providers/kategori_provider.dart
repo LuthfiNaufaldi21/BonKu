@@ -4,6 +4,7 @@ import '../models/kategori.dart';
 import '../repositories/kategori_repository.dart';
 import '../utils/helpers.dart';
 
+/// State bersama modul Kategori (data referensi) dengan CRUD lengkap.
 class KategoriProvider extends ChangeNotifier {
   KategoriProvider(this._repo);
 
@@ -21,6 +22,7 @@ class KategoriProvider extends ChangeNotifier {
   bool get isSubmitting => _isSubmitting;
   bool get isEmpty => _status == LoadStatus.success && _items.isEmpty;
 
+  /// Saklar demo: jika true, operasi berpura-pura gagal.
   bool get simulasiGagal => _simulasiGagal;
   set simulasiGagal(bool nilai) {
     if (nilai == _simulasiGagal) return;
@@ -35,8 +37,10 @@ class KategoriProvider extends ChangeNotifier {
     return null;
   }
 
+  /// Nama kategori untuk ditampilkan; aman jika ID tidak ditemukan.
   String namaDari(String id) => byId(id)?.nama ?? 'Tidak diketahui';
 
+  /// Apakah nama sudah dipakai kategori lain (tanpa membedakan huruf besar/kecil).
   bool namaTerpakai(String nama, {String? kecualiId}) {
     final n = nama.trim().toLowerCase();
     return _items.any((k) => k.id != kecualiId && k.nama.trim().toLowerCase() == n);
@@ -48,7 +52,8 @@ class KategoriProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      _items = await _repo.getAll(simulateError: _simulasiGagal);
+      await _cekSimulasi('memuat');
+      _items = await _repo.getAll();
       _status = LoadStatus.success;
     } catch (e) {
       _status = LoadStatus.error;
@@ -57,24 +62,30 @@ class KategoriProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> tambah(Kategori k) =>
-      _jalankan(() => _repo.tambah(k, simulateError: _simulasiGagal));
+  Future<bool> tambah(Kategori k) => _jalankan('menyimpan', () async {
+        await _repo.tambah(k);
+        _items = [..._items, k];
+      });
 
-  Future<bool> ubah(Kategori k) =>
-      _jalankan(() => _repo.ubah(k, simulateError: _simulasiGagal));
+  Future<bool> ubah(Kategori k) => _jalankan('menyimpan', () async {
+        await _repo.ubah(k);
+        _items = [for (final e in _items) e.id == k.id ? k : e];
+      });
 
-  Future<bool> hapus(String id) =>
-      _jalankan(() => _repo.hapus(id, simulateError: _simulasiGagal));
+  Future<bool> hapus(String id) => _jalankan('menghapus', () async {
+        await _repo.hapus(id);
+        _items = _items.where((e) => e.id != id).toList();
+      });
 
-  Future<bool> _jalankan(Future<void> Function() aksi) async {
-    if (_isSubmitting) return false; 
+  Future<bool> _jalankan(String namaAksi, Future<void> Function() aksi) async {
+    if (_isSubmitting) return false; // cegah submit ganda
     _isSubmitting = true;
     _errorMessage = null;
     notifyListeners();
     var berhasil = false;
     try {
+      await _cekSimulasi(namaAksi);
       await aksi();
-      _items = _repo.snapshot;
       berhasil = true;
     } catch (e) {
       _errorMessage = _bersihkan(e);
@@ -82,6 +93,12 @@ class KategoriProvider extends ChangeNotifier {
     _isSubmitting = false;
     notifyListeners();
     return berhasil;
+  }
+
+  Future<void> _cekSimulasi(String namaAksi) async {
+    if (!_simulasiGagal) return;
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    throw Exception('Simulasi gagal $namaAksi data');
   }
 
   String _bersihkan(Object e) => e.toString().replaceFirst('Exception: ', '');
