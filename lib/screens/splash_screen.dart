@@ -1,8 +1,12 @@
-import 'package:flutter/material.dart';
-
 import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/auth_provider.dart';
+import '../providers/preferensi_provider.dart';
 import 'auth_screen.dart';
+import 'main_nav_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -17,10 +21,17 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _navigationTimer = Timer(const Duration(seconds: 3), () {
+    _navigationTimer = Timer(const Duration(seconds: 2), () {
       if (!mounted) return;
+      // Sudah masuk sebelumnya -> langsung ke beranda; belum -> layar masuk.
+      final pengguna = context.read<AuthProvider>().pengguna;
+      if (pengguna != null) {
+        context.read<PreferensiProvider>().masuk(email: pengguna.email, nama: pengguna.nama);
+      }
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const AuthScreen()),
+        MaterialPageRoute(
+          builder: (context) => pengguna != null ? const MainNavScreen() : const AuthScreen(),
+        ),
       );
     });
   }

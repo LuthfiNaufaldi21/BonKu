@@ -1,19 +1,42 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'firebase_options.dart';
+import 'providers/auth_provider.dart';
 import 'providers/kategori_provider.dart';
 import 'providers/preferensi_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/transaksi_provider.dart';
+import 'repositories/firebase_auth_repository.dart';
 import 'repositories/in_memory_kategori_repository.dart';
 import 'repositories/in_memory_transaksi_repository.dart';
 import 'routes.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  } catch (e) {
+    // Biasanya karena konfigurasi Firebase belum lengkap di perangkat ini.
+    runApp(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text('Gagal memulai Firebase:\n$e', textAlign: TextAlign.center),
+          ),
+        ),
+      ),
+    ));
+    return;
+  }
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => AuthProvider(FirebaseAuthRepository())),
         ChangeNotifierProvider(create: (_) => PreferensiProvider()),
         ChangeNotifierProvider(
           create: (_) => KategoriProvider(InMemoryKategoriRepository())..muat(),

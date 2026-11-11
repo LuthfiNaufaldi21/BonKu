@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
 
+import '../providers/auth_provider.dart';
 import '../providers/preferensi_provider.dart';
 import 'main_nav_screen.dart';
 
@@ -28,15 +29,36 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    final auth = context.read<AuthProvider>();
+    if (auth.sedangProses) return;
+    final pref = context.read<PreferensiProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
 
-    context.read<PreferensiProvider>().masuk(
-          email: _emailController.text,
-          nama: _isSignUp ? _nameController.text : null,
-        );
+    final ok = _isSignUp
+        ? await auth.daftar(
+            nama: _nameController.text,
+            email: _emailController.text,
+            sandi: _passwordController.text,
+          )
+        : await auth.masuk(
+            email: _emailController.text,
+            sandi: _passwordController.text,
+          );
 
-    Navigator.of(context).pushReplacement(
+    if (!ok) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(auth.errorMessage ?? 'Gagal. Coba lagi.')),
+      );
+      return;
+    }
+
+    final p = auth.pengguna;
+    pref.masuk(email: p?.email ?? _emailController.text, nama: p?.nama);
+    if (!mounted) return;
+    navigator.pushReplacement(
       MaterialPageRoute(builder: (context) => const MainNavScreen()),
     );
   }
@@ -56,6 +78,7 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final sedangProses = context.watch<AuthProvider>().sedangProses;
 
     return Scaffold(
       backgroundColor: colors.surface,
@@ -228,15 +251,22 @@ class _AuthScreenState extends State<AuthScreen> {
                         ],
                       ),
                       child: ElevatedButton.icon(
-                        onPressed: _submit,
+                        onPressed: sedangProses ? null : _submit,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
+                          disabledBackgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
-                        icon: Icon(_isSignUp ? Icons.person_add_alt_1_rounded : Icons.login_rounded, color: colors.onPrimary),
+                        icon: sedangProses
+                            ? SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: colors.onPrimary),
+                              )
+                            : Icon(_isSignUp ? Icons.person_add_alt_1_rounded : Icons.login_rounded, color: colors.onPrimary),
                         label: Text(
-                          _isSignUp ? 'Daftar Sekarang' : 'Masuk',
+                          sedangProses ? 'Memproses...' : (_isSignUp ? 'Daftar Sekarang' : 'Masuk'),
                           style: TextStyle(color: colors.onPrimary, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                         ),
                       ),
@@ -318,15 +348,25 @@ class _LupaSandiDialogState extends State<_LupaSandiDialog> {
 
   Future<void> _kirim() async {
     if (!(_formKey.currentState?.validate() ?? false) || _mengirim) return;
+    final auth = context.read<AuthProvider>();
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final email = _emailC.text.trim();
 
     setState(() => _mengirim = true);
-    await Future<void>.delayed(const Duration(milliseconds: 800)); 
+    final ok = await auth.kirimResetSandi(email);
+    if (!mounted) return;
+
+    if (!ok) {
+      setState(() => _mengirim = false);
+      messenger.showSnackBar(
+        SnackBar(content: Text(auth.errorMessage ?? 'Gagal mengirim tautan. Coba lagi.')),
+      );
+      return;
+    }
     navigator.pop();
     messenger.showSnackBar(
-      SnackBar(content: Text('Tautan reset kata sandi dikirim ke $email (simulasi).')),
+      SnackBar(content: Text('Tautan reset kata sandi dikirim ke $email. Cek kotak masuk atau folder spam.')),
     );
   }
 

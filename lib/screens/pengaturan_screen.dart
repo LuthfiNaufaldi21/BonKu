@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../providers/auth_provider.dart';
 import '../providers/kategori_provider.dart';
 import '../providers/preferensi_provider.dart';
 import '../providers/theme_provider.dart';
@@ -135,6 +136,8 @@ class PengaturanScreen extends StatelessWidget {
       labelHapus: 'Keluar',
     );
     if (!ya || !context.mounted) return;
+    await context.read<AuthProvider>().keluar();
+    if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const AuthScreen()),
       (route) => false,
