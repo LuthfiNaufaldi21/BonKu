@@ -30,6 +30,22 @@ class KategoriProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  String? _uid;
+
+  /// Dipanggil saat pengguna berganti (masuk/keluar): kosongkan data lama lalu
+  /// muat data milik pengguna yang baru.
+  void sinkronkanPengguna(String? uid) {
+    if (uid == _uid) return;
+    _uid = uid;
+    Future.microtask(() {
+      _items = [];
+      _status = LoadStatus.initial;
+      _errorMessage = null;
+      notifyListeners();
+      if (uid != null) muat();
+    });
+  }
+
   Kategori? byId(String id) {
     for (final k in _items) {
       if (k.id == id) return k;

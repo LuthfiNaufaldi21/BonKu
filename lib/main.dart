@@ -9,8 +9,8 @@ import 'providers/preferensi_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/transaksi_provider.dart';
 import 'repositories/firebase_auth_repository.dart';
-import 'repositories/in_memory_kategori_repository.dart';
-import 'repositories/in_memory_transaksi_repository.dart';
+import 'repositories/firestore_kategori_repository.dart';
+import 'repositories/firestore_transaksi_repository.dart';
 import 'routes.dart';
 
 Future<void> main() async {
@@ -38,11 +38,20 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider(FirebaseAuthRepository())),
         ChangeNotifierProvider(create: (_) => PreferensiProvider()),
-        ChangeNotifierProvider(
-          create: (_) => KategoriProvider(InMemoryKategoriRepository())..muat(),
+        // Data dimuat ulang otomatis setiap kali pengguna masuk/keluar.
+        ChangeNotifierProxyProvider<AuthProvider, KategoriProvider>(
+          create: (_) => KategoriProvider(FirestoreKategoriRepository()),
+          update: (_, auth, provider) {
+            provider!.sinkronkanPengguna(auth.pengguna?.uid);
+            return provider;
+          },
         ),
-        ChangeNotifierProvider(
-          create: (_) => TransaksiProvider(InMemoryTransaksiRepository())..muat(),
+        ChangeNotifierProxyProvider<AuthProvider, TransaksiProvider>(
+          create: (_) => TransaksiProvider(FirestoreTransaksiRepository()),
+          update: (_, auth, provider) {
+            provider!.sinkronkanPengguna(auth.pengguna?.uid);
+            return provider;
+          },
         ),
       ],
       child: const BonKuApp(),

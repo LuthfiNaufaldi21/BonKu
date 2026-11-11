@@ -176,7 +176,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
-                            decoration: _buildInputDecoration('Email', Icons.email_outlined, colors).copyWith(hintText: 'user@email.com'),
+                            decoration: _buildInputDecoration('Email', Icons.email_outlined, colors).copyWith(hintText: 'user@gmail.com'),
                             validator: (value) {
                               final required = _requiredValidator(value, 'Email');
                               if (required != null) return required;
