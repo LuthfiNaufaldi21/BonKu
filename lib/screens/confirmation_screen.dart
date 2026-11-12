@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../data/seed_data.dart';
+import '../models/hasil_scan.dart';
 import '../models/item_transaksi.dart';
 import '../models/transaksi.dart';
 import '../providers/kategori_provider.dart';
@@ -35,10 +36,14 @@ class ConfirmationScreen extends StatefulWidget {
   final Transaksi? transaksi;
   final SumberResi sumber;
 
+  /// Hasil pembacaan struk (dari ScanScreen); null untuk input manual/edit.
+  final HasilScan? hasilScan;
+
   const ConfirmationScreen({
     super.key,
     this.transaksi,
     this.sumber = SumberResi.kamera,
+    this.hasilScan,
   });
 
   @override
@@ -58,7 +63,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
   final List<_ItemForm> _items = [];
 
   bool get _edit => widget.transaksi != null;
-  bool get _hasilScan => !_edit && _sumber != SumberResi.manual;
+  bool get _hasilScan => !_edit && widget.hasilScan != null;
 
   @override
   void initState() {
@@ -80,14 +85,21 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
           harga: i.harga,
         ));
       }
-    } else if (_sumber == SumberResi.manual) {
-      _items.add(_ItemForm(kategoriId: SeedData.katLain));
+    } else if (widget.hasilScan != null) {
+      // Isi form dari hasil pembacaan struk; pengguna tetap bisa mengoreksinya.
+      final h = widget.hasilScan!;
+      _tokoC.text = h.toko.length > 50 ? h.toko.substring(0, 50) : h.toko;
+      if (h.tanggal != null) {
+        _tanggal = h.tanggal!;
+        _tanggalC.text = Format.tanggalPanjang(_tanggal);
+        _jamC.text = Format.jam(_tanggal);
+      }
+      for (final i in h.items) {
+        _items.add(_ItemForm(nama: i.nama, kategoriId: i.kategoriId, harga: i.harga));
+      }
+      if (_items.isEmpty) _items.add(_ItemForm(kategoriId: SeedData.katLain));
     } else {
-      _items.addAll([
-        _ItemForm(nama: 'Nasi Goreng Spesial', kategoriId: SeedData.katKonsumsi, harga: 25000),
-        _ItemForm(nama: 'Buku Tulis Sinar Dunia', kategoriId: SeedData.katEdukasi, harga: 15000),
-        _ItemForm(nama: 'Barang Tidak Jelas AAA', kategoriId: SeedData.katLain, harga: 50000),
-      ]);
+      _items.add(_ItemForm(kategoriId: SeedData.katLain));
     }
   }
 
@@ -157,7 +169,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
       tanggal: _tanggal,
       sumber: _sumber,
       catatan: _catatanC.text.trim(),
-      imagePath: widget.transaksi?.imagePath,
+      imagePath: widget.transaksi?.imagePath ?? widget.hasilScan?.imagePath,
       items: [
         for (final i in _items)
           ItemTransaksi(
@@ -246,21 +258,25 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
         children: [
           if (_hasilScan) ...[
             Container(
-              height: 120,
+              height: 160,
+              width: double.infinity,
               margin: const EdgeInsets.only(top: 16),
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.image, size: 40, color: cs.onSurfaceVariant),
-                    Text('Preview Struk Fisik/Digital', style: TextStyle(color: cs.onSurfaceVariant)),
-                  ],
-                ),
-              ),
+              child: widget.hasilScan?.gambar != null
+                  ? Image.memory(widget.hasilScan!.gambar!, fit: BoxFit.contain)
+                  : Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.image, size: 40, color: cs.onSurfaceVariant),
+                          Text('Tidak ada pratinjau', style: TextStyle(color: cs.onSurfaceVariant)),
+                        ],
+                      ),
+                    ),
             ),
             const SizedBox(height: 12),
             Container(
@@ -273,10 +289,12 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
                 children: [
                   Icon(Icons.auto_awesome_rounded, size: 20, color: cs.tertiary),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Hasil simulasi AI. Periksa dan sesuaikan sebelum menyimpan.',
-                      style: TextStyle(fontSize: 12),
+                      widget.hasilScan?.simulasi == true
+                          ? 'Hasil simulasi (bukan dari struk asli). Periksa dan sesuaikan sebelum menyimpan.'
+                          : 'Dibaca oleh AI. Periksa dan sesuaikan sebelum menyimpan.',
+                      style: const TextStyle(fontSize: 12),
                     ),
                   ),
                 ],

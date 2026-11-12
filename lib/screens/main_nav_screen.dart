@@ -7,6 +7,7 @@ import 'home_screen.dart';
 import 'notifikasi_screen.dart';
 import 'pengaturan_screen.dart';
 import 'profil_screen.dart';
+import 'scan_screen.dart';
 import 'semua_resi_screen.dart';
 import 'statistik_screen.dart';
 import '../providers/preferensi_provider.dart';
@@ -39,7 +40,11 @@ class _MainNavScreenState extends State<MainNavScreen> {
     Navigator.pop(context);
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => ConfirmationScreen(sumber: sumber)),
+      MaterialPageRoute(
+        builder: (_) => sumber == SumberResi.manual
+            ? const ConfirmationScreen(sumber: SumberResi.manual)
+            : ScanScreen(sumber: sumber),
+      ),
     );
   }
 

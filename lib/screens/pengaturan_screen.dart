@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/kategori_provider.dart';
 import '../providers/preferensi_provider.dart';
+import '../providers/scan_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/transaksi_provider.dart';
 import '../widgets/dialogs.dart';
@@ -183,6 +184,7 @@ class PengaturanScreen extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final pref = context.watch<PreferensiProvider>();
     final trx = context.watch<TransaksiProvider>();
+    final scan = context.watch<ScanProvider>();
     final kategori = context.read<KategoriProvider>();
 
     return Scaffold(
@@ -264,6 +266,7 @@ class PengaturanScreen extends StatelessWidget {
               judul: 'Privasi & Keamanan',
               pesan: 'Data transaksi dirancang tersimpan lokal di perangkatmu (offline-first). '
                   'Gambar struk hanya disimpan sebagai path, bukan file utuh. '
+                  'Saat scan, foto struk dikirim ke layanan Google Gemini untuk dibaca. '
                   'Enkripsi basis data akan diaktifkan saat penyimpanan permanen dipasang.',
             ),
           ),
@@ -291,6 +294,18 @@ class PengaturanScreen extends StatelessWidget {
                 trx.muat();
                 kategori.muat();
               },
+              activeThumbColor: theme.colorScheme.primary,
+            ),
+          ),
+          _buildSettingItem(
+            theme,
+            icon: Icons.auto_awesome_rounded,
+            title: 'Pemindai Simulasi',
+            subtitle: 'Hasil scan contoh tanpa memakai kuota Gemini',
+            iconColor: Colors.purple,
+            trailing: Switch(
+              value: scan.pakaiSimulasi,
+              onChanged: scan.setPakaiSimulasi,
               activeThumbColor: theme.colorScheme.primary,
             ),
           ),
