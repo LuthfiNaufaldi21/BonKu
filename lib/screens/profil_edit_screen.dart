@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/preferensi_provider.dart';
+import '../widgets/dialogs.dart';
 
 class ProfilEditScreen extends StatefulWidget {
   const ProfilEditScreen({super.key});
@@ -21,6 +22,15 @@ class _ProfilEditScreenState extends State<ProfilEditScreen> {
   
   String? _fotoProfil;
   bool _menyimpan = false;
+
+  bool get _berubah {
+    final p = context.read<PreferensiProvider>();
+    return _namaC.text.trim() != p.nama ||
+        _emailC.text.trim() != p.email ||
+        _teleponC.text.trim() != p.telepon ||
+        _bioC.text.trim() != p.bio ||
+        _fotoProfil != p.fotoProfil;
+  }
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -131,6 +141,24 @@ class _ProfilEditScreenState extends State<ProfilEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false, // keputusan keluar diambil di _saatKembali, saat tombol ditekan
+      onPopInvokedWithResult: _saatKembali,
+      child: _bangun(context),
+    );
+  }
+
+  Future<void> _saatKembali(bool didPop, Object? hasil) async {
+    if (didPop) return;
+    if (!(_berubah)) {
+      Navigator.of(context).pop(); // tidak ada yang perlu dibuang
+      return;
+    }
+    final ya = await konfirmasiBuangPerubahan(context);
+    if (ya && mounted) Navigator.of(context).pop();
+  }
+
+  Widget _bangun(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(

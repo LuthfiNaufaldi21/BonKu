@@ -10,6 +10,7 @@ import '../providers/kategori_provider.dart';
 import '../providers/transaksi_provider.dart';
 import '../utils/format.dart';
 import '../utils/helpers.dart';
+import '../widgets/dialogs.dart';
 import '../widgets/state_views.dart';
 
 class _ItemForm {
@@ -61,6 +62,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
   late DateTime _tanggal;
   late SumberResi _sumber;
   final List<_ItemForm> _items = [];
+  late final String _awal; // isi form saat dibuka, untuk mendeteksi perubahan
 
   bool get _edit => widget.transaksi != null;
   bool get _hasilScan => !_edit && widget.hasilScan != null;
@@ -101,7 +103,19 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     } else {
       _items.add(_ItemForm(kategoriId: SeedData.katLain));
     }
+    _awal = _gambaranForm();
   }
+
+  String _gambaranForm() => [
+        _tokoC.text.trim(),
+        _catatanC.text.trim(),
+        _tanggal.toIso8601String(),
+        for (final i in _items) '${i.namaC.text.trim()}|${i.kategoriId}|${i.hargaC.text.trim()}',
+      ].join('|#|');
+
+  /// Hasil scan selalu perlu konfirmasi (hasilnya hilang jika keluar);
+  /// selain itu hanya jika isi form sudah berubah.
+  bool get _perluKonfirmasi => _hasilScan || _gambaranForm() != _awal;
 
   @override
   void dispose() {
@@ -197,6 +211,29 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false, // keputusan keluar diambil di _saatKembali, saat tombol ditekan
+      onPopInvokedWithResult: _saatKembali,
+      child: _bangun(context),
+    );
+  }
+
+  Future<void> _saatKembali(bool didPop, Object? hasil) async {
+    if (didPop) return;
+    if (!(_perluKonfirmasi)) {
+      Navigator.of(context).pop(); // tidak ada yang perlu dibuang
+      return;
+    }
+    final ya = await konfirmasiBuangPerubahan(context,
+      judul: _hasilScan ? 'Keluar tanpa menyimpan?' : 'Buang perubahan?',
+      pesan: _hasilScan
+          ? 'Hasil scan struk belum disimpan dan akan hilang.'
+          : 'Perubahan yang belum disimpan akan hilang.',
+    );
+    if (ya && mounted) Navigator.of(context).pop();
+  }
+
+  Widget _bangun(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final kategori = context.watch<KategoriProvider>();
     final menyimpan = context.watch<TransaksiProvider>().isSubmitting;

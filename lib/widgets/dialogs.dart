@@ -54,3 +54,31 @@ Future<void> tampilkanInfo(
     ),
   );
 }
+
+/// Dialog "Buang perubahan?" saat pengguna meninggalkan form yang belum disimpan.
+/// Mengembalikan true jika pengguna memilih keluar dan membuang isiannya.
+Future<bool> konfirmasiBuangPerubahan(
+  BuildContext context, {
+  String judul = 'Buang perubahan?',
+  String pesan = 'Perubahan yang belum disimpan akan hilang.',
+}) async {
+  final hasil = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      icon: const Icon(Icons.edit_off_rounded, size: 32),
+      title: Text(judul),
+      content: Text(pesan),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Lanjut mengisi'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Buang'),
+        ),
+      ],
+    ),
+  );
+  return hasil ?? false;
+}

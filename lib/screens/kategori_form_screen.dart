@@ -5,6 +5,7 @@ import '../models/kategori.dart';
 import '../providers/kategori_provider.dart';
 import '../utils/format.dart';
 import '../utils/helpers.dart';
+import '../widgets/dialogs.dart';
 
 class KategoriFormScreen extends StatefulWidget {
   final Kategori? kategori;
@@ -26,6 +27,10 @@ class _KategoriFormScreenState extends State<KategoriFormScreen> {
   late int _warna;
 
   bool get _edit => widget.kategori != null;
+
+  bool get _berubah =>
+      _namaC.text.trim() != (widget.kategori?.nama ?? '') ||
+      _warna != (widget.kategori?.warna ?? _palet.first);
 
   @override
   void initState() {
@@ -69,6 +74,24 @@ class _KategoriFormScreenState extends State<KategoriFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false, // keputusan keluar diambil di _saatKembali, saat tombol ditekan
+      onPopInvokedWithResult: _saatKembali,
+      child: _bangun(context),
+    );
+  }
+
+  Future<void> _saatKembali(bool didPop, Object? hasil) async {
+    if (didPop) return;
+    if (!(_berubah)) {
+      Navigator.of(context).pop(); // tidak ada yang perlu dibuang
+      return;
+    }
+    final ya = await konfirmasiBuangPerubahan(context);
+    if (ya && mounted) Navigator.of(context).pop();
+  }
+
+  Widget _bangun(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final provider = context.watch<KategoriProvider>();
     final menyimpan = provider.isSubmitting;
