@@ -19,7 +19,7 @@ class _ItemForm {
         hargaC = TextEditingController(text: harga?.toString() ?? ''),
         key = UniqueKey();
 
-  final String? id; 
+  final String? id;
   final Key key;
   final TextEditingController namaC;
   final TextEditingController hargaC;
@@ -62,6 +62,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
   late DateTime _tanggal;
   late SumberResi _sumber;
   final List<_ItemForm> _items = [];
+  String? _asalTanggal; // keterangan asal tanggal; hilang setelah pengguna mengubahnya
   late final String _awal; // isi form saat dibuka, untuk mendeteksi perubahan
 
   bool get _edit => widget.transaksi != null;
@@ -95,6 +96,9 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
         _tanggal = h.tanggal!;
         _tanggalC.text = Format.tanggalPanjang(_tanggal);
         _jamC.text = Format.jam(_tanggal);
+        _asalTanggal = 'Tanggal dibaca dari struk.';
+      } else {
+        _asalTanggal = 'Tanggal tidak terbaca, memakai waktu sekarang.';
       }
       for (final i in h.items) {
         _items.add(_ItemForm(nama: i.nama, kategoriId: i.kategoriId, harga: i.harga));
@@ -107,11 +111,11 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
   }
 
   String _gambaranForm() => [
-        _tokoC.text.trim(),
-        _catatanC.text.trim(),
-        _tanggal.toIso8601String(),
-        for (final i in _items) '${i.namaC.text.trim()}|${i.kategoriId}|${i.hargaC.text.trim()}',
-      ].join('|#|');
+    _tokoC.text.trim(),
+    _catatanC.text.trim(),
+    _tanggal.toIso8601String(),
+    for (final i in _items) '${i.namaC.text.trim()}|${i.kategoriId}|${i.hargaC.text.trim()}',
+  ].join('|#|');
 
   /// Hasil scan selalu perlu konfirmasi (hasilnya hilang jika keluar);
   /// selain itu hanya jika isi form sudah berubah.
@@ -129,6 +133,18 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     super.dispose();
   }
 
+  /// Keterangan di bawah kolom tanggal: asal tanggal (hasil scan) dan, kalau
+  /// bukan bulan ini, bulan tempat resi akan tercatat.
+  String? get _keteranganTanggal {
+    final sekarang = DateTime.now();
+    final bukanBulanIni = _tanggal.year != sekarang.year || _tanggal.month != sekarang.month;
+    final catatBulan = bukanBulanIni
+        ? 'Akan tercatat di ${Format.bulanTahun(_tanggal)}.'
+        : null;
+    final bagian = [if (_asalTanggal != null) _asalTanggal!, if (catatBulan != null) catatBulan];
+    return bagian.isEmpty ? null : bagian.join(' ');
+  }
+
   int get _total => _items.fold(0, (sum, i) => sum + i.harga);
 
   Future<void> _pilihTanggal() async {
@@ -141,6 +157,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     );
     if (hasil == null) return;
     setState(() {
+      _asalTanggal = null;
       _tanggal = DateTime(hasil.year, hasil.month, hasil.day, _tanggal.hour, _tanggal.minute);
       _tanggalC.text = Format.tanggalPanjang(_tanggal);
     });
@@ -153,6 +170,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     );
     if (hasil == null) return;
     setState(() {
+      _asalTanggal = null;
       _tanggal = DateTime(_tanggal.year, _tanggal.month, _tanggal.day, hasil.hour, hasil.minute);
       _jamC.text = Format.jam(_tanggal);
     });
@@ -283,6 +301,48 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     );
   }
 
+  /// Sumber resi ditentukan otomatis dari cara resi dicatat, jadi cukup
+  /// ditampilkan sebagai label kecil, bukan kolom isian.
+  Widget _chipSumber() {
+    final warna = Format.warnaSumber(_sumber);
+    return Tooltip(
+      message: 'Ditentukan otomatis dari cara resi dicatat',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: warna.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Format.ikonSumber(_sumber), size: 14, color: warna),
+            const SizedBox(width: 6),
+            Text(
+              Format.labelSumber(_sumber),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: warna),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Penghitung karakter baru tampil saat sudah dekat batas (90%), supaya
+  /// form tidak ramai oleh angka yang jarang dibutuhkan.
+  Widget? _penghitung(
+      BuildContext context, {
+        required int currentLength,
+        required bool isFocused,
+        required int? maxLength,
+      }) {
+    if (maxLength == null || currentLength < maxLength * 0.9) return null;
+    return Text(
+      '$currentLength/$maxLength',
+      style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+    );
+  }
+
   Widget _buildForm(KategoriProvider kategori, {bool barDiDalam = false, bool menyimpan = false}) {
     final cs = Theme.of(context).colorScheme;
 
@@ -306,14 +366,14 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
               child: widget.hasilScan?.gambar != null
                   ? Image.memory(widget.hasilScan!.gambar!, fit: BoxFit.contain)
                   : Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.image, size: 40, color: cs.onSurfaceVariant),
-                          Text('Tidak ada pratinjau', style: TextStyle(color: cs.onSurfaceVariant)),
-                        ],
-                      ),
-                    ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.image, size: 40, color: cs.onSurfaceVariant),
+                    Text('Tidak ada pratinjau', style: TextStyle(color: cs.onSurfaceVariant)),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 12),
             Container(
@@ -339,11 +399,22 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
             ),
           ],
           const SizedBox(height: 20),
-          Text('Informasi Resi', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Informasi Resi',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+              _chipSumber(),
+            ],
+          ),
           const SizedBox(height: 12),
           TextFormField(
             controller: _tokoC,
             maxLength: 50,
+            buildCounter: _penghitung,
             textInputAction: TextInputAction.next,
             textCapitalization: TextCapitalization.words,
             decoration: _dekor('Nama Toko / Sumber'),
@@ -355,7 +426,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
               return null;
             },
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -383,32 +454,39 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          // Sumber ditentukan otomatis dari cara resi dicatat, bukan pilihan pengguna.
-          InputDecorator(
-            decoration: _dekor('Sumber Resi').copyWith(
-              helperText: 'Ditentukan otomatis dari cara resi dicatat',
+          if (_keteranganTanggal != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Icon(Icons.info_outline_rounded, size: 14, color: cs.onSurfaceVariant),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _keteranganTanggal!,
+                      style: TextStyle(fontSize: 12, height: 1.3, color: cs.onSurfaceVariant),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: Row(
-              children: [
-                Icon(Format.ikonSumber(_sumber), size: 20, color: Format.warnaSumber(_sumber)),
-                const SizedBox(width: 10),
-                Text(Format.labelSumber(_sumber)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           TextFormField(
             controller: _catatanC,
             maxLength: 120,
+            buildCounter: _penghitung,
             maxLines: 3,
-            minLines: 2,
+            minLines: 1,
             textInputAction: TextInputAction.newline,
             keyboardType: TextInputType.multiline,
             decoration: _dekor('Catatan (opsional)'),
             validator: (v) => (v?.length ?? 0) > 120 ? 'Catatan maksimal 120 karakter' : null,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -572,10 +650,10 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
               ),
               icon: menyimpan
                   ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
                   : const Icon(Icons.save),
               label: Text(menyimpan ? 'Menyimpan...' : (_edit ? 'Simpan Perubahan' : 'Simpan Data')),
             ),

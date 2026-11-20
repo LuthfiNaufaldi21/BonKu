@@ -17,20 +17,18 @@ import 'repositories/firestore_transaksi_repository.dart';
 import 'routes.dart';
 import 'services/gemini_receipt_scanner.dart';
 import 'services/mock_receipt_scanner.dart';
+import 'services/share_intake.dart';
 
-/// Firebase AI Logic (Gemini) sejak 2 November 2026 mewajibkan App Check.
-/// Mode debug dipakai saat pengembangan; token debug didaftarkan di Firebase Console.
-/// Untuk APK demo: flutter build apk --dart-define=APP_CHECK_DEBUG=true
 const _appCheckDebugPaksa = bool.fromEnvironment('APP_CHECK_DEBUG');
 
 Future<void> _aktifkanAppCheck() async {
-  final pakaiDebug = kDebugMode || _appCheckDebugPaksa;
+  const pakaiDebug = _appCheckDebugPaksa;
   try {
     await FirebaseAppCheck.instance.activate(
       providerAndroid: pakaiDebug
           ? const AndroidDebugProvider()
           : const AndroidPlayIntegrityProvider(),
-      providerWeb: WebDebugProvider(), // hanya untuk uji di Chrome
+      providerWeb: WebDebugProvider(),
     );
   } catch (e) {
     debugPrint('App Check gagal diaktifkan: $e');
@@ -39,11 +37,11 @@ Future<void> _aktifkanAppCheck() async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ShareIntake.instance.mulai();
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     await _aktifkanAppCheck();
   } catch (e) {
-    // Biasanya karena konfigurasi Firebase belum lengkap di perangkat ini.
     runApp(MaterialApp(
       home: Scaffold(
         body: Center(
@@ -69,7 +67,6 @@ Future<void> main() async {
             simulasi: MockReceiptScanner(),
           ),
         ),
-        // Data dimuat ulang otomatis setiap kali pengguna masuk/keluar.
         ChangeNotifierProxyProvider<AuthProvider, KategoriProvider>(
           create: (_) => KategoriProvider(FirestoreKategoriRepository()),
           update: (_, auth, provider) {

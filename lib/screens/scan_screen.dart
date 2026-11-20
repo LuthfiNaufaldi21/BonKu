@@ -11,6 +11,7 @@ import '../models/transaksi.dart';
 import '../providers/kategori_provider.dart';
 import '../providers/scan_provider.dart';
 import '../services/receipt_scanner.dart';
+import '../services/share_intake.dart';
 import '../widgets/state_views.dart';
 import 'confirmation_screen.dart';
 
@@ -18,9 +19,13 @@ enum _Tahap { memilih, memindai, gagal }
 
 /// Alur scan: pilih foto (kamera/galeri) -> dibaca AI -> form konfirmasi.
 class ScanScreen extends StatefulWidget {
-  final SumberResi sumber; // kamera atau share (galeri)
+  final SumberResi sumber; // kamera atau share (galeri / kiriman aplikasi lain)
 
-  const ScanScreen({super.key, required this.sumber});
+  /// Gambar kiriman aplikasi lain (Share). Kalau ada, langkah memilih
+  /// gambar dilewati dan langsung dibaca AI.
+  final GambarDibagikan? gambarAwal;
+
+  const ScanScreen({super.key, required this.sumber, this.gambarAwal});
 
   @override
   State<ScanScreen> createState() => _ScanScreenState();
@@ -40,7 +45,16 @@ class _ScanScreenState extends State<ScanScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _pilihGambar());
+    final awal = widget.gambarAwal;
+    if (awal != null) {
+      _gambar = awal.gambar;
+      _path = awal.path;
+      _mime = awal.mime;
+      _tahap = _Tahap.memindai;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _pindai());
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _pilihGambar());
+    }
   }
 
   String _tebakMime(XFile f) {
@@ -133,7 +147,11 @@ class _ScanScreenState extends State<ScanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_kamera ? 'Scan Struk' : 'Pilih Resi Digital')),
+      appBar: AppBar(
+        title: Text(widget.gambarAwal != null
+            ? 'Resi Digital'
+            : (_kamera ? 'Scan Struk' : 'Pilih Resi Digital')),
+      ),
       body: SafeArea(child: _isi(context)),
     );
   }

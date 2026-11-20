@@ -8,6 +8,7 @@ import 'notifikasi_screen.dart';
 import 'pengaturan_screen.dart';
 import 'profil_screen.dart';
 import 'scan_screen.dart';
+import '../services/share_intake.dart';
 import 'semua_resi_screen.dart';
 import 'statistik_screen.dart';
 import '../providers/preferensi_provider.dart';
@@ -22,6 +23,32 @@ class MainNavScreen extends StatefulWidget {
 
 class _MainNavScreenState extends State<MainNavScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    ShareIntake.instance.tertunda.addListener(_periksaKiriman);
+    // Kiriman yang sudah menunggu sebelum layar ini tampil (mis. saat Splash).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _periksaKiriman());
+  }
+
+  @override
+  void dispose() {
+    ShareIntake.instance.tertunda.removeListener(_periksaKiriman);
+    super.dispose();
+  }
+
+  /// Gambar dari tombol Share aplikasi lain langsung masuk ke alur scan.
+  void _periksaKiriman() {
+    final kiriman = ShareIntake.instance.tertunda.value;
+    if (kiriman == null || !mounted) return;
+    ShareIntake.instance.tertunda.value = null;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ScanScreen(sumber: SumberResi.share, gambarAwal: kiriman),
+      ),
+    );
+  }
 
   void _changeTab(int index) {
     setState(() {
@@ -58,37 +85,37 @@ class _MainNavScreenState extends State<MainNavScreen> {
         return SafeArea(
           child: SingleChildScrollView(
             child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
-                child: Text(
-                  'Pilih Sumber Struk',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
+                  child: Text(
+                    'Pilih Sumber Struk',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.qr_code_scanner_rounded, color: Colors.teal),
-                title: const Text('Scan Struk Fisik'),
-                subtitle: const Text('Foto struk dengan kamera perangkat'),
-                onTap: () => _bukaForm(SumberResi.kamera),
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library_rounded, color: Colors.teal),
-                title: const Text('Pilih dari Galeri'),
-                subtitle: const Text('Impor tangkapan layar'),
-                onTap: () => _bukaForm(SumberResi.share),
-              ),
-              ListTile(
-                leading: const Icon(Icons.edit_note_rounded, color: Colors.teal),
-                title: const Text('Input Manual'),
-                subtitle: const Text('Isi data pengeluaran tanpa scan'),
-                onTap: () => _bukaForm(SumberResi.manual),
-              ),
-              const SizedBox(height: 10),
-            ],
-          ),
+                ListTile(
+                  leading: const Icon(Icons.qr_code_scanner_rounded, color: Colors.teal),
+                  title: const Text('Scan Struk Fisik'),
+                  subtitle: const Text('Foto struk dengan kamera perangkat'),
+                  onTap: () => _bukaForm(SumberResi.kamera),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library_rounded, color: Colors.teal),
+                  title: const Text('Pilih dari Galeri'),
+                  subtitle: const Text('Impor tangkapan layar'),
+                  onTap: () => _bukaForm(SumberResi.share),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.edit_note_rounded, color: Colors.teal),
+                  title: const Text('Input Manual'),
+                  subtitle: const Text('Isi data pengeluaran tanpa scan'),
+                  onTap: () => _bukaForm(SumberResi.manual),
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
           ),
         );
       },
@@ -115,11 +142,11 @@ class _MainNavScreenState extends State<MainNavScreen> {
               backgroundColor: colorScheme.primaryContainer,
               backgroundImage: pref.fotoProfil != null && pref.fotoProfil!.isNotEmpty
                   ? (pref.fotoProfil!.startsWith('http')
-                      ? NetworkImage(pref.fotoProfil!) as ImageProvider
-                      : FileImage(File(pref.fotoProfil!)))
+                  ? NetworkImage(pref.fotoProfil!) as ImageProvider
+                  : FileImage(File(pref.fotoProfil!)))
                   : null,
-              child: pref.fotoProfil == null 
-                  ? Icon(Icons.person_outline_rounded, color: colorScheme.primary) 
+              child: pref.fotoProfil == null
+                  ? Icon(Icons.person_outline_rounded, color: colorScheme.primary)
                   : null,
             ),
             const SizedBox(width: 16),
