@@ -95,19 +95,17 @@ class _AuthScreenState extends State<AuthScreen> {
                   children: [
                     Center(
                       child: Container(
-                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: colors.primaryContainer,
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: colors.primary.withValues(alpha: 0.2),
+                              color: colors.primary.withValues(alpha: 0.25),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
-                            )
+                            ),
                           ],
                         ),
-                        child: Icon(Icons.receipt_long_rounded, size: 48, color: colors.primary),
+                        child: Image.asset('assets/logo/logo.png', width: 88, height: 88),
                       ),
                     ),
                     const SizedBox(height: 32),
