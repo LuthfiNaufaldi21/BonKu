@@ -1,8 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum FrekuensiPengingat { harian, bulanan }
 
 class PreferensiProvider extends ChangeNotifier {
+  PreferensiProvider() {
+    _muatModeDemo();
+  }
+
+  static const _kModeDemo = 'mode_demo';
+
+  bool _modeDemo = false;
+  bool get modeDemo => _modeDemo;
+
+  Future<void> _muatModeDemo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _modeDemo = prefs.getBool(_kModeDemo) ?? false;
+      notifyListeners();
+    } catch (_) {
+      // Gagal membaca: biarkan Mode Demo nonaktif.
+    }
+  }
+
+  Future<void> setModeDemo(bool aktif) async {
+    if (aktif == _modeDemo) return;
+    _modeDemo = aktif;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kModeDemo, aktif);
+    } catch (_) {}
+  }
+
   String _nama = 'Lutpi D Naupaldi';
   String _email = 'lutpi@email.com';
   String _telepon = '081234567890';
