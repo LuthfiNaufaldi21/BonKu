@@ -2,6 +2,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
@@ -112,8 +113,13 @@ class BonKuApp extends StatelessWidget {
         useMaterial3: true,
       ),
       themeMode: themeProvider.themeMode,
-      // Tablet/desktop/web (sisi terpendek >= 600 dp): isi dibatasi 720 dp dan
-      // dipusatkan. HP, termasuk landscape, tetap memakai layar penuh.
+      locale: const Locale('id', 'ID'),
+      supportedLocales: const [Locale('id', 'ID')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       builder: (context, child) {
         final isi = child ?? const SizedBox.shrink();
         if (MediaQuery.sizeOf(context).shortestSide < 600) return isi;
