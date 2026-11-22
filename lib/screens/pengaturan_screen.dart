@@ -14,47 +14,6 @@ import 'kategori_list_screen.dart';
 class PengaturanScreen extends StatelessWidget {
   const PengaturanScreen({super.key});
 
-  Future<void> _cadangkan(BuildContext context) async {
-    final trx = context.read<TransaksiProvider>();
-    final kategori = context.read<KategoriProvider>();
-    final messenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
-
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const PopScope(
-        canPop: false,
-        child: AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 20),
-              Expanded(child: Text('Mencadangkan data...')),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    await Future<void>.delayed(const Duration(seconds: 1)); 
-    navigator.pop();
-
-    if (trx.simulasiGagal) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Gagal mencadangkan data (simulasi). Coba lagi.')),
-      );
-    } else {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Berhasil mencadangkan ${trx.items.length} resi dan ${kategori.items.length} kategori (simulasi).',
-          ),
-        ),
-      );
-    }
-  }
-
   void _bantuan(BuildContext context) {
     Widget faq(String tanya, String jawab) => ExpansionTile(
           tilePadding: EdgeInsets.zero,
@@ -99,8 +58,9 @@ class PengaturanScreen extends StatelessWidget {
                     'Buka dari Beranda atau tab Statistik.',
               ),
               faq(
-                'Kenapa data kembali seperti semula saat aplikasi ditutup?',
-                'Pada versi ini data masih berupa simulasi di memori. Penyimpanan permanen menyusul pada tahap berikutnya.',
+                'Apakah data resi saya tersimpan?',
+                'Ya. Resi dan kategori tersimpan otomatis di akun BonKu-mu, jadi tidak hilang saat aplikasi ditutup. '
+                    'Masuk dengan akun yang sama untuk melihat datamu lagi.',
               ),
             ],
           ),
@@ -208,7 +168,6 @@ class PengaturanScreen extends StatelessWidget {
             icon: Icons.dark_mode_rounded,
             title: 'Tema Tampilan',
             subtitle: themeProvider.isDarkMode ? 'Mode Gelap Aktif' : 'Mode Terang Aktif',
-            iconColor: Colors.indigo,
             trailing: Switch(
               value: themeProvider.isDarkMode,
               onChanged: (val) => themeProvider.toggleTheme(val),
@@ -220,7 +179,6 @@ class PengaturanScreen extends StatelessWidget {
             icon: Icons.notifications_active_rounded,
             title: 'Pengingat Pencatatan',
             subtitle: pref.pengingatAktif ? 'Aktif • ${pref.jadwalTeks}' : 'Nonaktif',
-            iconColor: Colors.orange,
             trailing: Switch(
               value: pref.pengingatAktif,
               onChanged: (val) {
@@ -237,7 +195,6 @@ class PengaturanScreen extends StatelessWidget {
             icon: Icons.schedule_rounded,
             title: 'Jadwal Pengingat',
             subtitle: pref.pengingatAktif ? pref.jadwalTeks : 'Aktifkan pengingat terlebih dulu',
-            iconColor: Colors.amber,
             onTap: pref.pengingatAktif
                 ? () => showDialog<void>(context: context, builder: (_) => const _JadwalDialog())
                 : null,
@@ -249,7 +206,6 @@ class PengaturanScreen extends StatelessWidget {
             icon: Icons.category_rounded,
             title: 'Kelola Kategori',
             subtitle: 'Tambah, ubah, dan hapus kategori pengeluaran',
-            iconColor: Colors.deepPurple,
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const KategoriListScreen()),
@@ -259,72 +215,67 @@ class PengaturanScreen extends StatelessWidget {
             theme,
             icon: Icons.security_rounded,
             title: 'Privasi & Keamanan',
-            subtitle: 'Enkripsi data offline-first',
-            iconColor: Colors.green,
+            subtitle: 'Cara data disimpan dan diproses',
             onTap: () => tampilkanInfo(
               context,
               judul: 'Privasi & Keamanan',
-              pesan: 'Data transaksi dirancang tersimpan lokal di perangkatmu (offline-first). '
+              pesan: 'Resi dan kategori disimpan di akun BonKu-mu menggunakan Google Firebase (Cloud Firestore). '
                   'Gambar struk hanya disimpan sebagai path, bukan file utuh. '
-                  'Saat scan, foto struk dikirim ke layanan Google Gemini untuk dibaca. '
-                  'Enkripsi basis data akan diaktifkan saat penyimpanan permanen dipasang.',
+                  'Saat scan, foto struk dikirim ke layanan Google Gemini untuk dibaca.',
             ),
           ),
           _buildSettingItem(
             theme,
-            icon: Icons.backup_rounded,
-            title: 'Cadangkan Data',
-            subtitle: 'Simpan riwayat struk',
-            iconColor: Colors.blue,
-            onTap: () => _cadangkan(context),
+            icon: Icons.cloud_done_rounded,
+            title: 'Penyimpanan Data',
+            subtitle: 'Tersimpan otomatis di akun BonKu-mu',
           ),
-          const SizedBox(height: 24),
-          _buildSectionTitle(theme, 'Mode Demo'),
-          _buildSettingItem(
-            theme,
-            icon: Icons.bug_report_rounded,
-            title: 'Simulasi Gagal',
-            subtitle: 'Paksa pemuatan dan penyimpanan data gagal',
-            iconColor: Colors.redAccent,
-            trailing: Switch(
-              value: trx.simulasiGagal,
-              onChanged: (val) {
-                trx.simulasiGagal = val;
-                kategori.simulasiGagal = val;
-                trx.muat();
-                kategori.muat();
-              },
-              activeThumbColor: theme.colorScheme.primary,
+          if (pref.modeDemo) ...[
+            const SizedBox(height: 24),
+            _buildSectionTitle(theme, 'Mode Demo'),
+            _buildSettingItem(
+              theme,
+              icon: Icons.bug_report_rounded,
+              title: 'Simulasi Gagal',
+              subtitle: 'Paksa pemuatan dan penyimpanan data gagal',
+              trailing: Switch(
+                value: trx.simulasiGagal,
+                onChanged: (val) {
+                  trx.simulasiGagal = val;
+                  kategori.simulasiGagal = val;
+                  trx.muat();
+                  kategori.muat();
+                },
+                activeThumbColor: theme.colorScheme.primary,
+              ),
             ),
-          ),
-          _buildSettingItem(
-            theme,
-            icon: Icons.auto_awesome_rounded,
-            title: 'Pemindai Simulasi',
-            subtitle: 'Hasil scan contoh tanpa memakai kuota Gemini',
-            iconColor: Colors.purple,
-            trailing: Switch(
-              value: scan.pakaiSimulasi,
-              onChanged: scan.setPakaiSimulasi,
-              activeThumbColor: theme.colorScheme.primary,
+            _buildSettingItem(
+              theme,
+              icon: Icons.auto_awesome_rounded,
+              title: 'Pemindai Simulasi',
+              subtitle: 'Hasil scan contoh tanpa memakai kuota Gemini',
+              trailing: Switch(
+                value: scan.pakaiSimulasi,
+                onChanged: scan.setPakaiSimulasi,
+                activeThumbColor: theme.colorScheme.primary,
+              ),
             ),
-          ),
-          _buildSettingItem(
-            theme,
-            icon: Icons.delete_sweep_rounded,
-            title: 'Kosongkan Semua Resi',
-            subtitle: 'Untuk menguji tampilan data kosong',
-            iconColor: Colors.brown,
-            onTap: trx.isSubmitting ? null : () => _kosongkan(context),
-          ),
-          _buildSettingItem(
-            theme,
-            icon: Icons.restore_rounded,
-            title: 'Pulihkan Data Awal',
-            subtitle: 'Kembalikan 24 resi contoh',
-            iconColor: Colors.cyan,
-            onTap: trx.isSubmitting ? null : () => _pulihkan(context),
-          ),
+            _buildSettingItem(
+              theme,
+              icon: Icons.delete_sweep_rounded,
+              title: 'Kosongkan Semua Resi',
+              subtitle: 'Hapus semua resi di akun ini (uji tampilan kosong)',
+              iconColor: colorScheme.error,
+              onTap: trx.isSubmitting ? null : () => _kosongkan(context),
+            ),
+            _buildSettingItem(
+              theme,
+              icon: Icons.restore_rounded,
+              title: 'Pulihkan Data Awal',
+              subtitle: 'Kembalikan 24 resi contoh',
+              onTap: trx.isSubmitting ? null : () => _pulihkan(context),
+            ),
+          ],
           const SizedBox(height: 24),
           _buildSectionTitle(theme, 'Lainnya'),
           _buildSettingItem(
@@ -332,7 +283,6 @@ class PengaturanScreen extends StatelessWidget {
             icon: Icons.help_outline_rounded,
             title: 'Pusat Bantuan',
             subtitle: 'Panduan scan & keluhan',
-            iconColor: Colors.teal,
             onTap: () => _bantuan(context),
           ),
           _buildSettingItem(
@@ -340,12 +290,13 @@ class PengaturanScreen extends StatelessWidget {
             icon: Icons.info_outline_rounded,
             title: 'Tentang BonKu',
             subtitle: 'Versi 1.0.0',
-            iconColor: Colors.grey,
             onTap: () => _tentang(context),
           ),
           const SizedBox(height: 32),
           _buildLogoutButton(context),
-          const SizedBox(height: 40),
+          const SizedBox(height: 16),
+          const _VersiAplikasi(),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -369,10 +320,11 @@ class PengaturanScreen extends StatelessWidget {
     required IconData icon,
     required String title,
     required String subtitle,
-    required Color iconColor,
+    Color? iconColor,
     VoidCallback? onTap,
     Widget? trailing,
   }) {
+    final warna = iconColor ?? theme.colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
@@ -386,10 +338,10 @@ class PengaturanScreen extends StatelessWidget {
           leading: Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.12),
+              color: warna.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: iconColor, size: 22),
+            child: Icon(icon, color: warna, size: 22),
           ),
           title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
           subtitle: Text(
@@ -503,6 +455,81 @@ class _JadwalDialogState extends State<_JadwalDialog> {
           child: const Text('Simpan'),
         ),
       ],
+    );
+  }
+}
+
+class _VersiAplikasi extends StatefulWidget {
+  const _VersiAplikasi();
+
+  @override
+  State<_VersiAplikasi> createState() => _VersiAplikasiState();
+}
+
+class _VersiAplikasiState extends State<_VersiAplikasi> {
+  static const _target = 7;
+  static const _jeda = Duration(seconds: 2);
+
+  int _ketukan = 0;
+  DateTime? _terakhir;
+
+  void _ketuk() {
+    final sekarang = DateTime.now();
+    if (_terakhir != null && sekarang.difference(_terakhir!) > _jeda) {
+      _ketukan = 0;
+    }
+    _terakhir = sekarang;
+    _ketukan++;
+
+    final pref = context.read<PreferensiProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+
+    if (_ketukan >= _target) {
+      _ketukan = 0;
+      final aktif = !pref.modeDemo;
+      pref.setModeDemo(aktif);
+      if (!aktif) _matikanSimulasi();
+      messenger.showSnackBar(
+        SnackBar(content: Text(aktif ? 'Mode Demo diaktifkan.' : 'Mode Demo dinonaktifkan.')),
+      );
+    } else if (_ketukan >= 4) {
+      final sisa = _target - _ketukan;
+      final aksi = pref.modeDemo ? 'menonaktifkan' : 'mengaktifkan';
+      messenger.showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 1),
+          content: Text('Tinggal $sisa ketukan lagi untuk $aksi Mode Demo.'),
+        ),
+      );
+    }
+  }
+
+  void _matikanSimulasi() {
+    final trx = context.read<TransaksiProvider>();
+    final kategori = context.read<KategoriProvider>();
+    final perluMuatUlang = trx.simulasiGagal || kategori.simulasiGagal;
+    trx.simulasiGagal = false;
+    kategori.simulasiGagal = false;
+    context.read<ScanProvider>().setPakaiSimulasi(false);
+    if (perluMuatUlang) {
+      trx.muat();
+      kategori.muat();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final warna = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Center(
+      child: InkWell(
+        onTap: _ketuk,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Text('BonKu v1.0.0', style: TextStyle(fontSize: 12, color: warna)),
+        ),
+      ),
     );
   }
 }
