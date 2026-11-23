@@ -10,13 +10,16 @@ import '../providers/kategori_provider.dart';
 import '../providers/transaksi_provider.dart';
 import '../utils/format.dart';
 import '../utils/helpers.dart';
+import '../utils/rupiah_input_formatter.dart';
 import '../widgets/dialogs.dart';
 import '../widgets/state_views.dart';
 
 class _ItemForm {
   _ItemForm({this.id, String nama = '', this.kategoriId, int? harga})
       : namaC = TextEditingController(text: nama),
-        hargaC = TextEditingController(text: harga?.toString() ?? ''),
+        hargaC = TextEditingController(
+          text: harga == null ? '' : RupiahInputFormatter.format(harga),
+        ),
         key = UniqueKey();
 
   final String? id;
@@ -25,7 +28,11 @@ class _ItemForm {
   final TextEditingController hargaC;
   String? kategoriId;
 
-  int get harga => int.tryParse(hargaC.text) ?? 0;
+  /// Item yang dihapus tidak dibuang dari daftar, hanya ditandai, supaya bisa
+  /// diurungkan. Item terhapus tidak ikut total, validasi, maupun penyimpanan.
+  bool terhapus = false;
+
+  int get harga => RupiahInputFormatter.parse(hargaC.text) ?? 0;
 
   void dispose() {
     namaC.dispose();
@@ -114,7 +121,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     _tokoC.text.trim(),
     _catatanC.text.trim(),
     _tanggal.toIso8601String(),
-    for (final i in _items) '${i.namaC.text.trim()}|${i.kategoriId}|${i.hargaC.text.trim()}',
+    for (final i in _aktif) '${i.namaC.text.trim()}|${i.kategoriId}|${i.hargaC.text.trim()}',
   ].join('|#|');
 
   /// Hasil scan selalu perlu konfirmasi (hasilnya hilang jika keluar);
@@ -145,7 +152,10 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     return bagian.isEmpty ? null : bagian.join(' ');
   }
 
-  int get _total => _items.fold(0, (sum, i) => sum + i.harga);
+  /// Item yang belum dihapus.
+  List<_ItemForm> get _aktif => _items.where((i) => !i.terhapus).toList();
+
+  int get _total => _aktif.fold(0, (sum, i) => sum + i.harga);
 
   Future<void> _pilihTanggal() async {
     final sekarang = DateTime.now();
@@ -180,10 +190,14 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     setState(() => _items.add(_ItemForm(kategoriId: SeedData.katLain)));
   }
 
+  /// Menandai item sebagai dihapus. Barisnya berubah menjadi "Item dihapus"
+  /// dengan tombol Urungkan, jadi tidak bergantung pada SnackBar.
   void _hapusItem(int index) {
-    final item = _items.removeAt(index);
-    item.dispose();
-    setState(() {});
+    setState(() => _items[index].terhapus = true);
+  }
+
+  void _urungkanItem(int index) {
+    setState(() => _items[index].terhapus = false);
   }
 
   Future<void> _simpan() async {
@@ -203,7 +217,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
       catatan: _catatanC.text.trim(),
       imagePath: widget.transaksi?.imagePath ?? widget.hasilScan?.imagePath,
       items: [
-        for (final i in _items)
+        for (final i in _aktif)
           ItemTransaksi(
             id: i.id ?? IdGenerator.next('itm'),
             transaksiId: id,
@@ -287,10 +301,11 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     );
   }
 
-  InputDecoration _dekor(String label, {Widget? suffix, EdgeInsets? padding, IconData? prefixIcon}) {
+  InputDecoration _dekor(String label, {Widget? suffix, EdgeInsets? padding, IconData? prefixIcon, String? prefixText}) {
     final cs = Theme.of(context).colorScheme;
     return InputDecoration(
       labelText: label,
+      prefixText: prefixText,
       suffixIcon: suffix,
       prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: cs.onSurfaceVariant) : null,
       filled: true,
@@ -491,7 +506,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Rincian Item (${_items.length})',
+                'Rincian Item (${_aktif.length})',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
               ),
               TextButton.icon(
@@ -516,6 +531,34 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     final item = _items[index];
     final kategoriValid = kategori.items.any((k) => k.id == item.kategoriId) ? item.kategoriId : null;
     final cs = Theme.of(context).colorScheme;
+
+    if (item.terhapus) {
+      return Container(
+        key: item.key,
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.delete_outline_rounded, size: 20, color: cs.onSurfaceVariant),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('Item dihapus', style: TextStyle(color: cs.onSurfaceVariant)),
+            ),
+            TextButton.icon(
+              onPressed: () => _urungkanItem(index),
+              icon: const Icon(Icons.undo_rounded, size: 18),
+              label: const Text('Urungkan'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final nomor = _items.take(index).where((i) => !i.terhapus).length + 1;
 
     return Container(
       key: item.key,
@@ -544,10 +587,10 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
                   color: cs.primaryContainer,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text('Item ${index + 1}', style: TextStyle(fontWeight: FontWeight.bold, color: cs.onPrimaryContainer, fontSize: 12)),
+                child: Text('Item $nomor', style: TextStyle(fontWeight: FontWeight.bold, color: cs.onPrimaryContainer, fontSize: 12)),
               ),
               const Spacer(),
-              if (_items.length > 1)
+              if (_aktif.length > 1)
                 IconButton(
                   tooltip: 'Hapus item',
                   visualDensity: VisualDensity.compact,
@@ -585,14 +628,14 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
           TextFormField(
             controller: item.hargaC,
             keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            inputFormatters: const [RupiahInputFormatter()],
             textInputAction: TextInputAction.done,
-            decoration: _dekor('Harga (Rp)', prefixIcon: Icons.payments_outlined),
+            decoration: _dekor('Harga', prefixIcon: Icons.payments_outlined, prefixText: 'Rp '),
             onChanged: (_) => setState(() {}),
             validator: (v) {
               final s = v?.trim() ?? '';
               if (s.isEmpty) return 'Harga wajib diisi';
-              final n = int.tryParse(s);
+              final n = RupiahInputFormatter.parse(s);
               if (n == null || n <= 0) return 'Harus lebih dari 0';
               if (n > _maksHarga) return 'Harga maksimal ${Format.rupiah(_maksHarga)}';
               return null;
