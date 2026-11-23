@@ -22,7 +22,7 @@ class ResiDetailScreen extends StatelessWidget {
       context,
       judul: 'Hapus resi?',
       pesan: 'Resi "${t.toko}" (${t.items.length} item, ${Format.rupiah(t.total)}) '
-          'akan dihapus permanen.',
+          'akan dihapus.',
     );
     if (!ya || !context.mounted) return;
 
@@ -31,7 +31,29 @@ class ResiDetailScreen extends StatelessWidget {
     final ok = await provider.hapus(t.id);
     if (ok) {
       if (context.mounted) navigator.pop();
-      messenger.showSnackBar(const SnackBar(content: Text('Resi dihapus.')));
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('Resi dihapus.'),
+          duration: const Duration(seconds: 6),
+          persist: false, // SnackBar dengan tombol aksi tidak menutup sendiri secara bawaan
+          action: SnackBarAction(
+            label: 'Urungkan',
+            onPressed: () async {
+              // Disimpan ulang dengan ID yang sama, jadi resi kembali persis seperti semula.
+              final pulih = await provider.tambah(t);
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(
+                    pulih
+                        ? 'Resi dipulihkan.'
+                        : (provider.errorMessage ?? 'Gagal memulihkan resi. Coba lagi.'),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
     } else {
       messenger.showSnackBar(
         SnackBar(content: Text(provider.errorMessage ?? 'Gagal menghapus. Coba lagi.')),
