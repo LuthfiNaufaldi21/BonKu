@@ -459,6 +459,8 @@ class _JadwalDialogState extends State<_JadwalDialog> {
   }
 }
 
+/// Teks versi di dasar layar. Diketuk 7 kali beruntun untuk membuka atau
+/// menutup Mode Demo (alat bantu presentasi), mirip Opsi Pengembang di Android.
 class _VersiAplikasi extends StatefulWidget {
   const _VersiAplikasi();
 
@@ -505,6 +507,8 @@ class _VersiAplikasiState extends State<_VersiAplikasi> {
     }
   }
 
+  /// Saat Mode Demo ditutup, semua simulasi ikut dimatikan supaya aplikasi
+  /// tidak diam-diam memakai data contoh.
   void _matikanSimulasi() {
     final trx = context.read<TransaksiProvider>();
     final kategori = context.read<KategoriProvider>();
