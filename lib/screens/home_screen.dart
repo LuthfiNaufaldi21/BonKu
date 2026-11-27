@@ -14,7 +14,14 @@ import 'resi_detail_screen.dart';
 class HomeScreen extends StatelessWidget {
   final VoidCallback onViewAllPressed;
 
-  const HomeScreen({super.key, required this.onViewAllPressed});
+  /// Membuka pilihan sumber resi (scan, galeri, manual); dipakai tombol di empty state.
+  final VoidCallback onTambahPressed;
+
+  const HomeScreen({
+    super.key,
+    required this.onViewAllPressed,
+    required this.onTambahPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +29,9 @@ class HomeScreen extends StatelessWidget {
     final trx = context.watch<TransaksiProvider>();
     final kategori = context.watch<KategoriProvider>();
 
-    if (trx.status == LoadStatus.initial || trx.status == LoadStatus.loading) {
+    // Spinner layar penuh hanya untuk muat pertama; saat tarik-untuk-memuat-ulang
+    // isi lama tetap tampil dan indikator tarik yang berputar.
+    if ((trx.status == LoadStatus.initial || trx.status == LoadStatus.loading) && trx.isEmpty) {
       return const LoadingView(pesan: 'Memuat ringkasan...');
     }
     if (trx.status == LoadStatus.error) {
@@ -32,10 +41,12 @@ class HomeScreen extends StatelessWidget {
       );
     }
     if (trx.isEmpty) {
-      return const EmptyView(
+      return EmptyView(
         icon: Icons.receipt_long_rounded,
-        judul: 'Belum ada transaksi',
-        pesan: 'Tekan tombol + di tengah untuk mencatat pengeluaran pertama.',
+        judul: 'Belum ada resi',
+        pesan: 'Catat pengeluaran pertamamu dengan scan struk atau isi manual.',
+        labelAksi: 'Catat Resi Pertama',
+        onAksi: onTambahPressed,
       );
     }
 
@@ -44,8 +55,19 @@ class HomeScreen extends StatelessWidget {
     final total = Ringkasan.total(dataBulan);
     final perKategori = Ringkasan.totalPerKategori(dataBulan).take(3).toList();
     final terbaru = trx.items.take(3).toList();
+    final bulanLalu = DateTime(bulan.year, bulan.month - 1);
+    final dataLalu = Ringkasan.pada(trx.items, bulanLalu);
+    final totalLalu = dataLalu.isEmpty ? null : Ringkasan.total(dataLalu);
 
-    return CustomScrollView(
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Future.wait([
+          context.read<TransaksiProvider>().muat(),
+          context.read<KategoriProvider>().muat(),
+        ]);
+      },
+      child: CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
@@ -54,11 +76,11 @@ class HomeScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
-                _buildBalanceCard(theme, bulan, total, dataBulan.length),
+                _buildBalanceCard(theme, bulan, total, dataBulan.length, totalLalu, bulanLalu),
                 const SizedBox(height: 24),
                 _buildTopCategories(theme, kategori, perKategori, total),
                 const SizedBox(height: 24),
-                _buildMonthlyWrappedBanner(context, theme),
+                _buildMonthlyWrappedBanner(context, theme, bulan),
                 const SizedBox(height: 32),
                 _buildRecentReceiptsHeader(theme),
                 const SizedBox(height: 16),
@@ -86,16 +108,30 @@ class HomeScreen extends StatelessWidget {
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 40)),
       ],
+      ),
     );
   }
 
-  Widget _buildBalanceCard(ThemeData theme, DateTime bulan, int total, int jumlah) {
+  Widget _buildBalanceCard(
+    ThemeData theme,
+    DateTime bulan,
+    int total,
+    int jumlah,
+    int? totalLalu,
+    DateTime bulanLalu,
+  ) {
+    final cs = theme.colorScheme;
+    final hsl = HSLColor.fromColor(cs.primary);
+    final warnaAkhir = hsl.withLightness((hsl.lightness - 0.10).clamp(0.0, 1.0)).toColor();
+    final teksUtama = cs.onPrimary;
+    final teksRedup = cs.onPrimary.withValues(alpha: 0.75);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [theme.colorScheme.primary, theme.colorScheme.primary.withBlue(180)],
+          colors: [cs.primary, warnaAkhir],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -114,7 +150,7 @@ class HomeScreen extends StatelessWidget {
           Text(
             'Total Pengeluaran ${Format.bulanTahun(bulan)}',
             style: theme.textTheme.titleSmall?.copyWith(
-              color: Colors.white70,
+              color: teksRedup,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -125,14 +161,57 @@ class HomeScreen extends StatelessWidget {
             child: Text(
               Format.rupiah(total),
               style: theme.textTheme.headlineMedium?.copyWith(
-                color: Colors.white,
+                color: teksUtama,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.2,
               ),
             ),
           ),
           const SizedBox(height: 8),
-          Text('$jumlah transaksi', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          Text('$jumlah transaksi', style: TextStyle(color: teksRedup, fontSize: 12)),
+          if (totalLalu != null && totalLalu > 0) ...[
+            const SizedBox(height: 12),
+            _buildSelisih(cs.onPrimary, total, totalLalu, bulanLalu),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Perbandingan dengan bulan sebelumnya (Month-over-Month).
+  Widget _buildSelisih(Color warna, int total, int totalLalu, DateTime bulanLalu) {
+    final selisih = total - totalLalu;
+    final persen = (selisih.abs() * 100 / totalLalu).round();
+    final nama = Format.bulanTahun(bulanLalu);
+    final IconData ikon;
+    final String teks;
+    if (persen == 0) {
+      ikon = Icons.trending_flat_rounded;
+      teks = 'Hampir sama dengan $nama';
+    } else if (selisih > 0) {
+      ikon = Icons.trending_up_rounded;
+      teks = 'Naik $persen% dari $nama';
+    } else {
+      ikon = Icons.trending_down_rounded;
+      teks = 'Turun $persen% dari $nama';
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: warna.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(ikon, size: 16, color: warna),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              teks,
+              style: TextStyle(color: warna, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
         ],
       ),
     );
@@ -217,7 +296,19 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMonthlyWrappedBanner(BuildContext context, ThemeData theme) {
+  /// Wrapped dianggap "siap" untuk bulan yang sudah berakhir atau pada 3 hari
+  /// terakhir bulan berjalan (FR-05: ditampilkan di akhir bulan). Sebelum itu
+  /// tetap bisa dibuka, tetapi diberi label pratinjau.
+  bool _wrappedSiap(DateTime bulan) {
+    final sekarang = DateTime.now();
+    final bulanIni = DateTime(sekarang.year, sekarang.month);
+    if (DateTime(bulan.year, bulan.month).isBefore(bulanIni)) return true;
+    final hariTerakhir = DateTime(bulan.year, bulan.month + 1, 0).day;
+    return sekarang.day >= hariTerakhir - 2;
+  }
+
+  Widget _buildMonthlyWrappedBanner(BuildContext context, ThemeData theme, DateTime bulan) {
+    final siap = _wrappedSiap(bulan);
     return Material(
       color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
       borderRadius: BorderRadius.circular(20),
@@ -235,8 +326,15 @@ class HomeScreen extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                child: const Icon(Icons.insights_rounded, color: Colors.deepPurple, size: 24),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.insights_rounded,
+                  color: theme.colorScheme.onPrimaryContainer,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -244,7 +342,7 @@ class HomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Monthly Wrapped Siap!',
+                      siap ? 'Monthly Wrapped Siap!' : 'Monthly Wrapped Bulan Ini',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: theme.colorScheme.onSurface,
@@ -252,7 +350,9 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Evaluasi tren pengeluaran bulan lalu.',
+                      siap
+                          ? 'Evaluasi tren pengeluaran ${Format.bulanTahun(bulan)}.'
+                          : 'Pratinjau ${Format.bulanTahun(bulan)}, bulan ini belum berakhir.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

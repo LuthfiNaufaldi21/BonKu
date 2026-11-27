@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/transaksi.dart';
 import 'confirmation_screen.dart';
 import 'home_screen.dart';
@@ -55,9 +56,9 @@ class _MainNavScreenState extends State<MainNavScreen> {
   }
 
   late final List<Widget> _pages = [
-    HomeScreen(onViewAllPressed: () => _changeTab(2)),
+    HomeScreen(onViewAllPressed: () => _changeTab(2), onTambahPressed: _pilihSumber),
     const StatistikScreen(),
-    const SemuaResiScreen(),
+    SemuaResiScreen(onTambahPressed: _pilihSumber),
     const ProfilScreen(),
   ];
 
@@ -167,6 +168,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
         ),
         actions: [
           IconButton(
+            tooltip: 'Pengaturan',
             icon: const Icon(Icons.settings_outlined),
             onPressed: () {
               Navigator.push(
@@ -176,6 +178,7 @@ class _MainNavScreenState extends State<MainNavScreen> {
             },
           ),
           IconButton(
+            tooltip: 'Notifikasi',
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () {
               Navigator.push(
@@ -207,27 +210,30 @@ class _MainNavScreenState extends State<MainNavScreen> {
               Expanded(child: _buildNavItem(Icons.pie_chart_rounded, 'Statistik', 1, theme)),
               Expanded(
                 child: Center(
-                  child: InkWell(
-                    onTap: _pilihSumber,
-                    borderRadius: BorderRadius.circular(28),
-                    child: Container(
-                      height: pendek ? 44 : 56,
-                      width: pendek ? 44 : 56,
-                      decoration: BoxDecoration(
-                        color: colorScheme.primary,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: colorScheme.primary.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.add_rounded,
-                        color: colorScheme.onPrimary,
-                        size: pendek ? 28 : 32,
+                  child: Tooltip(
+                    message: 'Tambah resi',
+                    child: InkWell(
+                      onTap: _pilihSumber,
+                      borderRadius: BorderRadius.circular(28),
+                      child: Container(
+                        height: pendek ? 44 : 56,
+                        width: pendek ? 44 : 56,
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: colorScheme.primary.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.add_rounded,
+                          color: colorScheme.onPrimary,
+                          size: pendek ? 28 : 32,
+                        ),
                       ),
                     ),
                   ),

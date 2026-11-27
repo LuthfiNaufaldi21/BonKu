@@ -10,7 +10,10 @@ import '../widgets/transaksi_card.dart';
 import 'resi_detail_screen.dart';
 
 class SemuaResiScreen extends StatefulWidget {
-  const SemuaResiScreen({super.key});
+  /// Membuka pilihan sumber resi; dipakai tombol di empty state.
+  final VoidCallback? onTambahPressed;
+
+  const SemuaResiScreen({super.key, this.onTambahPressed});
 
   @override
   State<SemuaResiScreen> createState() => _SemuaResiScreenState();
@@ -81,7 +84,7 @@ class _SemuaResiScreenState extends State<SemuaResiScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Riwayat otomatis dari scan kamera & share intent',
+                      'Semua resi yang sudah kamu catat, dari scan maupun input manual',
                       style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
                     ),
                     const SizedBox(height: 16),
@@ -116,10 +119,12 @@ class _SemuaResiScreenState extends State<SemuaResiScreen> {
       case LoadStatus.success:
         if (trx.isEmpty) {
           return [
-            isi(const EmptyView(
+            isi(EmptyView(
               icon: Icons.receipt_long_rounded,
               judul: 'Belum ada resi',
-              pesan: 'Tekan tombol + di tengah untuk menambahkan resi pertama.',
+              pesan: 'Catat pengeluaranmu dengan scan struk atau isi manual.',
+              labelAksi: widget.onTambahPressed == null ? null : 'Catat Resi',
+              onAksi: widget.onTambahPressed,
             )),
           ];
         }
