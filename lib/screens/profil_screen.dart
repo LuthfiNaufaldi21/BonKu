@@ -1,7 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../providers/kategori_provider.dart';
 import '../providers/preferensi_provider.dart';
 import '../providers/transaksi_provider.dart';
@@ -51,14 +49,8 @@ class ProfilScreen extends StatelessWidget {
 
   Widget _buildProfileCard(ThemeData theme, PreferensiProvider pref) {
     final cs = theme.colorScheme;
-    ImageProvider? imageProvider;
-    if (pref.fotoProfil != null && pref.fotoProfil!.isNotEmpty) {
-      if (pref.fotoProfil!.startsWith('http')) {
-        imageProvider = NetworkImage(pref.fotoProfil!);
-      } else {
-        imageProvider = FileImage(File(pref.fotoProfil!));
-      }
-    }
+    final foto = pref.fotoBytes;
+    final ImageProvider? imageProvider = foto == null ? null : MemoryImage(foto);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -73,7 +65,7 @@ class ProfilScreen extends StatelessWidget {
             radius: 36,
             backgroundColor: cs.primary.withValues(alpha: 0.15),
             backgroundImage: imageProvider,
-            child: pref.fotoProfil == null ? Icon(Icons.person_rounded, size: 36, color: cs.primary) : null,
+            child: foto == null ? Icon(Icons.person_rounded, size: 36, color: cs.primary) : null,
           ),
           const SizedBox(width: 16),
           Expanded(

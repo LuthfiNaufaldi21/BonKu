@@ -1,12 +1,20 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../repositories/firestore_profil_repository.dart';
+import '../repositories/profil_repository.dart';
 
 enum FrekuensiPengingat { harian, bulanan }
 
 class PreferensiProvider extends ChangeNotifier {
-  PreferensiProvider() {
+  PreferensiProvider({ProfilRepository? profilRepo}) : _profilRepo = profilRepo {
     _muatModeDemo();
   }
+
+  ProfilRepository? _profilRepo;
+
+  /// Dibuat saat pertama dipakai, supaya tidak menyentuh Firebase sebelum perlu.
+  ProfilRepository get _repo => _profilRepo ??= FirestoreProfilRepository();
 
   static const _kModeDemo = 'mode_demo';
 
@@ -35,9 +43,12 @@ class PreferensiProvider extends ChangeNotifier {
 
   String _nama = 'Lutpi D Naupaldi';
   String _email = 'lutpi@email.com';
-  String _telepon = '081234567890';
-  String _bio = 'Pencatat Keuangan Handal';
-  String? _fotoProfil; 
+  static const _teleponAwal = '081234567890';
+  static const _bioAwal = 'Pencatat Keuangan Handal';
+
+  String _telepon = _teleponAwal;
+  String _bio = _bioAwal;
+  Uint8List? _fotoBytes;
 
   bool _pengingatAktif = true;
   FrekuensiPengingat _frekuensi = FrekuensiPengingat.harian;
@@ -47,7 +58,7 @@ class PreferensiProvider extends ChangeNotifier {
   String get email => _email;
   String get telepon => _telepon;
   String get bio => _bio;
-  String? get fotoProfil => _fotoProfil;
+  Uint8List? get fotoBytes => _fotoBytes;
 
   bool get pengingatAktif => _pengingatAktif;
   FrekuensiPengingat get frekuensi => _frekuensi;
@@ -63,22 +74,49 @@ class PreferensiProvider extends ChangeNotifier {
   void masuk({required String email, String? nama}) {
     _email = email.trim();
     if (nama != null && nama.trim().isNotEmpty) _nama = nama.trim();
+    // Profil akun sebelumnya tidak boleh terbawa ke akun yang baru masuk.
+    _telepon = _teleponAwal;
+    _bio = _bioAwal;
+    _fotoBytes = null;
     notifyListeners();
+    _muatProfil();
   }
 
-  void ubahProfil({
+  /// Mengambil profil (termasuk foto) dari database setelah masuk.
+  Future<void> _muatProfil() async {
+    final emailSaatMuat = _email;
+    try {
+      final data = await _repo.muat();
+      if (data == null || _email != emailSaatMuat) return; // belum ada, atau akun sudah berganti
+      if (data.nama.isNotEmpty) _nama = data.nama;
+      _telepon = data.telepon;
+      _bio = data.bio;
+      _fotoBytes = data.foto;
+      notifyListeners();
+    } catch (_) {
+      // Offline atau belum ada profil: tetap memakai nilai yang ada di perangkat.
+    }
+  }
+
+  Future<String?> ubahProfil({
     required String nama,
     required String email,
     required String telepon,
     required String bio,
-    String? fotoProfil,
-  }) {
+    Uint8List? fotoBytes,
+  }) async {
     _nama = nama.trim();
     _email = email.trim();
     _telepon = telepon.trim();
     _bio = bio.trim();
-    if (fotoProfil != null) _fotoProfil = fotoProfil;
+    if (fotoBytes != null) _fotoBytes = fotoBytes;
     notifyListeners();
+    try {
+      await _repo.simpan(ProfilData(nama: _nama, telepon: _telepon, bio: _bio, foto: _fotoBytes));
+      return null;
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
   }
 
   void setPengingat(bool aktif) {

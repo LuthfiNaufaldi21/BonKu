@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-
 import '../models/transaksi.dart';
 import 'confirmation_screen.dart';
 import 'home_screen.dart';
@@ -140,12 +138,8 @@ class _MainNavScreenState extends State<MainNavScreen> {
             CircleAvatar(
               radius: 24,
               backgroundColor: colorScheme.primaryContainer,
-              backgroundImage: pref.fotoProfil != null && pref.fotoProfil!.isNotEmpty
-                  ? (pref.fotoProfil!.startsWith('http')
-                  ? NetworkImage(pref.fotoProfil!) as ImageProvider
-                  : FileImage(File(pref.fotoProfil!)))
-                  : null,
-              child: pref.fotoProfil == null
+              backgroundImage: pref.fotoBytes != null ? MemoryImage(pref.fotoBytes!) : null,
+              child: pref.fotoBytes == null
                   ? Icon(Icons.person_outline_rounded, color: colorScheme.primary)
                   : null,
             ),

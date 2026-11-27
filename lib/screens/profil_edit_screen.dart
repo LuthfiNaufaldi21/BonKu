@@ -1,9 +1,9 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-
 import '../providers/preferensi_provider.dart';
+import '../repositories/profil_repository.dart';
 import '../widgets/dialogs.dart';
 
 class ProfilEditScreen extends StatefulWidget {
@@ -20,7 +20,7 @@ class _ProfilEditScreenState extends State<ProfilEditScreen> {
   late final TextEditingController _teleponC;
   late final TextEditingController _bioC;
   
-  String? _fotoProfil;
+  Uint8List? _foto;
   bool _menyimpan = false;
 
   bool get _berubah {
@@ -29,7 +29,7 @@ class _ProfilEditScreenState extends State<ProfilEditScreen> {
         _emailC.text.trim() != p.email ||
         _teleponC.text.trim() != p.telepon ||
         _bioC.text.trim() != p.bio ||
-        _fotoProfil != p.fotoProfil;
+        !identical(_foto, p.fotoBytes);
   }
   final ImagePicker _picker = ImagePicker();
 
@@ -41,7 +41,7 @@ class _ProfilEditScreenState extends State<ProfilEditScreen> {
     _emailC = TextEditingController(text: p.email);
     _teleponC = TextEditingController(text: p.telepon);
     _bioC = TextEditingController(text: p.bio);
-    _fotoProfil = p.fotoProfil;
+    _foto = p.fotoBytes;
   }
 
   @override
@@ -53,10 +53,29 @@ class _ProfilEditScreenState extends State<ProfilEditScreen> {
     super.dispose();
   }
 
-  ImageProvider? _getImageProvider(String? path) {
-    if (path == null || path.isEmpty) return null;
-    if (path.startsWith('http')) return NetworkImage(path);
-    return FileImage(File(path));
+  ImageProvider? _gambarFoto() => _foto == null ? null : MemoryImage(_foto!);
+
+  /// Mengambil foto dan memperkecilnya (maks. 400 px, JPEG) agar muat disimpan
+  /// di database tanpa membebani koneksi.
+  Future<void> _ambilFoto(ImageSource sumber) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final berkas = await _picker.pickImage(
+        source: sumber,
+        maxWidth: 400,
+        maxHeight: 400,
+        imageQuality: 75,
+      );
+      if (berkas == null) return;
+      final bytes = await berkas.readAsBytes();
+      if (bytes.length > ProfilData.maksBytesFoto) {
+        messenger.showSnackBar(const SnackBar(content: Text('Foto terlalu besar. Pilih foto lain.')));
+        return;
+      }
+      if (mounted) setState(() => _foto = bytes);
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(content: Text('Foto tidak bisa dibuka. Coba lagi.')));
+    }
   }
 
   Future<void> _pilihFoto() async {
@@ -80,8 +99,7 @@ class _ProfilEditScreenState extends State<ProfilEditScreen> {
               title: const Text('Ambil dari Kamera'),
               onTap: () async {
                 Navigator.pop(context);
-                final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
-                if (photo != null) setState(() => _fotoProfil = photo.path);
+                await _ambilFoto(ImageSource.camera);
               },
             ),
             ListTile(
@@ -89,8 +107,7 @@ class _ProfilEditScreenState extends State<ProfilEditScreen> {
               title: const Text('Pilih dari Galeri'),
               onTap: () async {
                 Navigator.pop(context);
-                final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-                if (image != null) setState(() => _fotoProfil = image.path);
+                await _ambilFoto(ImageSource.gallery);
               },
             ),
           ],
@@ -114,15 +131,22 @@ class _ProfilEditScreenState extends State<ProfilEditScreen> {
     final navigator = Navigator.of(context);
 
     setState(() => _menyimpan = true);
-    await Future<void>.delayed(const Duration(milliseconds: 500)); 
-    provider.ubahProfil(
+    final kesalahan = await provider.ubahProfil(
       nama: _namaC.text,
       email: _emailC.text,
       telepon: _teleponC.text,
       bio: _bioC.text,
-      fotoProfil: _fotoProfil,
+      fotoBytes: _foto,
     );
-    messenger.showSnackBar(const SnackBar(content: Text('Profil berhasil diperbarui.')));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          kesalahan == null
+              ? 'Profil berhasil diperbarui.'
+              : 'Profil diperbarui di perangkat, tetapi belum tersimpan ke database: $kesalahan',
+        ),
+      ),
+    );
     if (mounted) navigator.pop();
   }
 
@@ -176,8 +200,8 @@ class _ProfilEditScreenState extends State<ProfilEditScreen> {
                   CircleAvatar(
                     radius: 50,
                     backgroundColor: cs.primaryContainer,
-                    backgroundImage: _getImageProvider(_fotoProfil),
-                    child: _fotoProfil == null ? Icon(Icons.person, size: 50, color: cs.primary) : null,
+                    backgroundImage: _gambarFoto(),
+                    child: _foto == null ? Icon(Icons.person, size: 50, color: cs.primary) : null,
                   ),
                   Positioned(
                     bottom: 0,
