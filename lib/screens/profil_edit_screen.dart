@@ -1,9 +1,11 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../providers/preferensi_provider.dart';
 import '../repositories/profil_repository.dart';
+import '../services/izin_perangkat.dart';
 import '../widgets/dialogs.dart';
 
 class ProfilEditScreen extends StatefulWidget {
@@ -19,7 +21,7 @@ class _ProfilEditScreenState extends State<ProfilEditScreen> {
   late final TextEditingController _emailC;
   late final TextEditingController _teleponC;
   late final TextEditingController _bioC;
-  
+
   Uint8List? _foto;
   bool _menyimpan = false;
 
@@ -59,6 +61,21 @@ class _ProfilEditScreenState extends State<ProfilEditScreen> {
   /// di database tanpa membebani koneksi.
   Future<void> _ambilFoto(ImageSource sumber) async {
     final messenger = ScaffoldMessenger.of(context);
+    final izin = sumber == ImageSource.camera
+        ? await IzinPerangkat.kamera(context)
+        : await IzinPerangkat.galeri(context);
+    if (!mounted || izin == HasilIzin.dibatalkan) return;
+    if (izin != HasilIzin.diberikan) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('Izin kamera diperlukan untuk mengambil foto.'),
+          action: izin == HasilIzin.ditolakPermanen
+              ? const SnackBarAction(label: 'Pengaturan', onPressed: openAppSettings)
+              : null,
+        ),
+      );
+      return;
+    }
     try {
       final berkas = await _picker.pickImage(
         source: sumber,
@@ -211,7 +228,7 @@ class _ProfilEditScreenState extends State<ProfilEditScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: cs.primary, 
+                          color: cs.primary,
                           shape: BoxShape.circle,
                           border: Border.all(color: cs.surface, width: 2),
                         ),

@@ -4,25 +4,25 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 import '../models/hasil_scan.dart';
 import '../models/transaksi.dart';
 import '../providers/kategori_provider.dart';
 import '../providers/scan_provider.dart';
+import '../services/izin_perangkat.dart';
 import '../services/receipt_scanner.dart';
 import '../services/share_intake.dart';
 import '../widgets/state_views.dart';
 import 'confirmation_screen.dart';
+import 'kamera_screen.dart';
 
 enum _Tahap { memilih, memindai, gagal }
 
 /// Alur scan: pilih foto (kamera/galeri) -> dibaca AI -> form konfirmasi.
 class ScanScreen extends StatefulWidget {
-  final SumberResi sumber; // kamera atau share (galeri / kiriman aplikasi lain)
-
-  /// Gambar kiriman aplikasi lain (Share). Kalau ada, langkah memilih
-  /// gambar dilewati dan langsung dibaca AI.
+  final SumberResi sumber;
   final GambarDibagikan? gambarAwal;
 
   const ScanScreen({super.key, required this.sumber, this.gambarAwal});
@@ -39,8 +39,12 @@ class _ScanScreenState extends State<ScanScreen> {
   String? _pesan;
   bool _kuotaHabis = false;
   String? _detail;
+  bool _butuhIzin = false;
+  bool _izinPermanen = false;
 
   bool get _kamera => widget.sumber == SumberResi.kamera;
+
+  bool get _kameraDalam => _kamera && !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   @override
   void initState() {
@@ -69,16 +73,44 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Future<void> _pilihGambar() async {
-    setState(() => _tahap = _Tahap.memilih);
+    setState(() {
+      _tahap = _Tahap.memilih;
+      _butuhIzin = false;
+      _izinPermanen = false;
+    });
+    final izin = _kamera ? await IzinPerangkat.kamera(context) : await IzinPerangkat.galeri(context);
+    if (!mounted) return;
+    if (izin == HasilIzin.dibatalkan) {
+      Navigator.of(context).pop();
+      return;
+    }
+    if (izin != HasilIzin.diberikan) {
+      final permanen = izin == HasilIzin.ditolakPermanen;
+      setState(() {
+        _tahap = _Tahap.gagal;
+        _butuhIzin = true;
+        _izinPermanen = permanen;
+        _pesan = permanen
+            ? 'Izin kamera dimatikan. Buka Pengaturan, pilih Izin, lalu aktifkan Kamera untuk BonKu.'
+            : 'BonKu memerlukan izin kamera untuk memotret struk.';
+        _kuotaHabis = false;
+        _detail = null;
+      });
+      return;
+    }
     try {
-      final file = await ImagePicker().pickImage(
-        source: _kamera ? ImageSource.camera : ImageSource.gallery,
-        maxWidth: 1600, // dikecilkan agar cepat dan hemat
-        imageQuality: 80,
-      );
+      final XFile? file = _kameraDalam
+          ? await Navigator.of(context).push<XFile>(
+              MaterialPageRoute(builder: (_) => const KameraScreen()),
+            )
+          : await ImagePicker().pickImage(
+              source: _kamera ? ImageSource.camera : ImageSource.gallery,
+              maxWidth: 1600,
+              imageQuality: 80,
+            );
       if (!mounted) return;
       if (file == null) {
-        Navigator.of(context).pop(); // pengguna membatalkan
+        Navigator.of(context).pop();
         return;
       }
       final bytes = await file.readAsBytes();
@@ -221,7 +253,7 @@ class _ScanScreenState extends State<ScanScreen> {
             Icon(Icons.error_outline_rounded, size: 56, color: cs.error),
             const SizedBox(height: 16),
             Text(
-              'Struk belum terbaca',
+              _butuhIzin ? 'Izin diperlukan' : 'Struk belum terbaca',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
@@ -246,17 +278,27 @@ class _ScanScreenState extends State<ScanScreen> {
               ),
             ],
             const SizedBox(height: 24),
+            if (_izinPermanen) ...[
+              FilledButton.icon(
+                onPressed: openAppSettings,
+                icon: const Icon(Icons.settings_rounded),
+                label: const Text('Buka Pengaturan'),
+              ),
+              const SizedBox(height: 8),
+            ],
             FilledButton.icon(
               onPressed: _gambar != null ? () => _pindai() : _pilihGambar,
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('Coba lagi'),
             ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _pilihGambar,
-              icon: Icon(_kamera ? Icons.camera_alt_rounded : Icons.photo_library_rounded),
-              label: Text(_kamera ? 'Foto ulang' : 'Pilih gambar lain'),
-            ),
+            if (!_butuhIzin) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _pilihGambar,
+                icon: Icon(_kamera ? Icons.camera_alt_rounded : Icons.photo_library_rounded),
+                label: Text(_kamera ? 'Foto ulang' : 'Pilih gambar lain'),
+              ),
+            ],
             const SizedBox(height: 8),
             OutlinedButton.icon(
               onPressed: () => _bukaForm(HasilScan(gambar: _gambar, imagePath: _path)),
